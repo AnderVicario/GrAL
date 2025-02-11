@@ -1,120 +1,175 @@
 import os
-import textwrap
-from pathlib import Path
 import asyncio
-import PyPDF2
-import markdown
-
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain.retrievers.document_compressors import FlashrankRerank
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Qdrant
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_together import ChatTogether  # Nuevo import
-from llama_parse import LlamaParse
+import requests
+import json
+from pathlib import Path
+from typing import List, Dict
 from dotenv import load_dotenv
 
-# Set API keys
+import numpy as np
+from together import Together
+from fastembed.embedding import TextEmbedding
+from flashrank import Ranker, RerankRequest
+from llama_parse import LlamaParse
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, VectorParams, PointStruct
+
+# Konfigurazio-parametroak
 load_dotenv()
+DATA_DIR = Path("data")
+DB_DIR = Path("./db")
+PDF_FILE = "NVIDIAAn.pdf"
+CHUNK_SIZE = 1024
+CHUNK_OVERLAP = 128
+EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
+RERANK_MODEL = "ms-marco-MiniLM-L-12-v2"
+
+# API gakoak
+LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-LLAMA_PARSE_KEY = os.getenv("LLAMA_PARSE_KEY")
 
-# Impresión de la respuesta
-def print_response(response):
-    response_txt = response["result"]
-    for chunk in response_txt.split("\n"):
-        if not chunk:
-            print()
-            continue
-        print("\n".join(textwrap.wrap(chunk, 100, break_long_words=False)))
+class DocumentProcessor:
+    @staticmethod
+    async def parse_pdf(file_path: str) -> str:
+        parser = LlamaParse(
+            api_key=LLAMA_CLOUD_API_KEY,
+            result_type="markdown",
+            max_timeout=5000,
+            content_guideline_instruction="Extract financial tables and relevant text keeping the structure intact."
+        )
+        documents = await parser.aload_data(file_path)
+        full_context = "\n".join(doc.text for doc in documents)
+        return full_context
 
-instruction = """The provided document is NVIDIA's First Quarter Fiscal 2024 Financial Results.
-This is a press release that provides detailed financial information about NVIDIA's performance for the first quarter of its fiscal year 2024.
-It includes unaudited financial statements, management's commentary, highlights of key developments, and disclosures related to NVIDIA's outlook for the next quarter.
-The document contains many financial tables and figures. Try to be precise while answering questions based on the information in this press release."""
+    @staticmethod
+    def chunk_text(text: str) -> List[str]:
+        chunks = []
+        start = 0
+        while start < len(text):
+            end = start + CHUNK_SIZE
+            chunks.append(text[start:end])
+            start = end - CHUNK_OVERLAP
+            if start < 0:
+                start = 0
+        return chunks
+
+class VectorDatabase:
+    def __init__(self):
+        self.client = QdrantClient(path=str(DB_DIR))
+        self.embedder = TextEmbedding(model_name=EMBEDDING_MODEL)
+        self.ranker = Ranker(model_name=RERANK_MODEL)
+       
+    def initialize_collection(self, collection_name: str):
+        self.client.recreate_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=768,  # Embedding tamaina
+                distance=Distance.COSINE
+            )
+        )
+   
+    def add_documents(self, collection_name: str, chunks: List[str]):
+        embeddings = list(self.embedder.embed(chunks))
+       
+        points = [
+            PointStruct(
+                id=idx,
+                vector=embedding.tolist(),
+                payload={"text": chunk}
+            )
+            for idx, (chunk, embedding) in enumerate(zip(chunks, embeddings))
+        ]
+       
+        self.client.upsert(
+            collection_name=collection_name,
+            points=points
+        )
+
+class QAEngine:
+    def __init__(self):
+        # Together APIa erabiltzeko bezeroa inizializatu (API gakoa ingurune-aldagaietatik jasotzen da)
+        self.client = Together()
+
+    def generate_response(self, context: str, question: str) -> str:
+        """
+        Finantza-testuinguruan eta galderan oinarritutako erantzuna sortzen du,
+        Together-en txat complementions endpoint-a erabiliz streaming bidez.
+        """
+        prompt = f"""Analyze the following financial context and answer the question:
+        
+Context:
+{context}
+
+Question: {question}
+
+Answer (be precise with figures and dates, mention the source):
+"""
+        messages = [{"role": "user", "content": prompt}]
+
+        # Together-en endpoint-erako deia, streaming-a aktibatuta
+        response = self.client.chat.completions.create(
+            model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+
+        full_response = ""
+        # Jasotako token bakoitza ikusi eta denbora errealean erakutsi
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+                print(content, end='', flush=True)
+        print()  # Streaming-a amaitzean, lerro-jauzia
+
+        return full_response
 
 async def main():
-    parser = LlamaParse(
-        api_key=LLAMA_PARSE_KEY,
-        result_type="markdown",
-        parsing_instruction=instruction,
-        max_timeout=5000,
+    # 1. urratsa: PDF prozesatu
+    processor = DocumentProcessor()
+    parsed_text = await processor.parse_pdf(PDF_FILE)
+   
+    # 2. urratsa: Testua gorde eta zatitu
+    DATA_DIR.mkdir(exist_ok=True)
+    (DATA_DIR / "parsed.md").write_text(parsed_text)
+    chunks = processor.chunk_text(parsed_text)
+   
+    # 3. urratsa: Hasieratu datu-base bektoriala eta dokumentuak gehitu
+    db = VectorDatabase()
+    db.initialize_collection("financial_reports")
+    db.add_documents("financial_reports", chunks)
+   
+    # 4. urratsa: Bilatu eta erantzuna sortu
+    query = "¿Cúal es el pronostico o la previsión que harías con NVIDIA para el resto del año 2024? ¿En qué porcentaje subirán las acciones?"
+   
+    # Bilaketa semantikoa
+    embeddings = list(db.embedder.embed([query]))
+    query_vector = embeddings[0].tolist()
+
+    search_results = db.client.search(
+        collection_name="financial_reports",
+        query_vector=query_vector,
+        limit=10
     )
+   
+    # Re-ranker-a erabili
+    ranked_results = db.ranker.rerank(RerankRequest(
+        query=query,
+        passages=[{"text": hit.payload["text"]} for hit in search_results]
+    ))
+   
+    # Testuingurua erabili
+    context = "\n".join([doc["text"] for doc in ranked_results])
+   
+    # Erantzuna sortu
+    qa = QAEngine()
+    qa.generate_response(context, query)
 
-    llama_parse_documents = await parser.aload_data("NVIDIAAn.pdf")
-    parsed_doc = llama_parse_documents[0].text
-
-    # Create the data directory if it doesn't exist
-    data_dir = Path("data")
-    data_dir.mkdir(parents=True, exist_ok=True)
-
-    # Write the parsed content to the parsed_document.md file
-    document_path = data_dir / "parsed_document.md"
-    with document_path.open("w", encoding="utf-8") as f:
-        f.write(parsed_doc)
-
-    # Load the parsed_document.md file
-    loader = UnstructuredMarkdownLoader(document_path)
-    loaded_documents = loader.load()
-
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2048, chunk_overlap=128)
-    docs = text_splitter.split_documents(loaded_documents)
-
-    # Download embeddings
-    embeddings = FastEmbedEmbeddings(model_name="BAAI/bge-base-en-v1.5")
-
-    qdrant = Qdrant.from_documents(
-        docs,
-        embeddings,
-        path="./db",
-        collection_name="document_embeddings",
-    )
-
-    retriever = qdrant.as_retriever(search_kwargs={"k": 5})
-
-    compressor = FlashrankRerank(model="ms-marco-MiniLM-L-12-v2")
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor, base_retriever=retriever
-    )
-
-    # Reemplazamos ChatGroq con ChatTogether
-    llm = ChatTogether(
-        together_api_key=TOGETHER_API_KEY,
-        model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
-        temperature=0
-    )
-
-    prompt_template = """
-    Use the following pieces of information to answer the user's question.
-    If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-    Context: {context}
-    Question: {question}
-
-    Answer the question and provide additional helpful information,
-    based on the pieces of information, if applicable. Be succinct.
-
-    Responses should be properly formatted to be easily read.
-    """
-
-    prompt = PromptTemplate(
-        template=prompt_template, input_variables=["context", "question"]
-    )
-
-    qa = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=compression_retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt, "verbose": False},
-    )
-
-    query = "Compare the Gross profit from 2022 and 2023?"
-    response = qa.invoke(query)
-    print(markdown.markdown(response["result"]))
-
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
