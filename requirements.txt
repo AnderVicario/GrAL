@@ -1,0 +1,15 @@
+asyncio
+PyPDF2
+markdown
+python-dotenv
+textwrap
+pathlib
+langchain
+langchain-core
+langchain-community
+langchain-together
+qdrant-client
+unstructured
+flashrank
+fastembed
+llama-parse
