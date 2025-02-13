@@ -23,6 +23,7 @@ CHUNK_SIZE = 1024
 CHUNK_OVERLAP = 128
 EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 RERANK_MODEL = "ms-marco-MiniLM-L-12-v2"
+LLM_MODEL = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
 # API gakoak
 LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
@@ -108,7 +109,7 @@ Answer (be precise with figures and dates, mention the source):
 
         # Together-en endpoint-erako deia, streaming-a aktibatuta
         response = self.client.chat.completions.create(
-            model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
+            model=LLM_MODEL,
             messages=messages,
             max_tokens=2056,
             temperature=0.7,
