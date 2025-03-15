@@ -6,3 +6,4 @@ llama-parse
 qdrant_client
 python-dotenv
 together
+yfinance
