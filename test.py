@@ -96,7 +96,7 @@ class QAEngine:
         Finantza-testuinguruan eta galderan oinarritutako erantzuna sortzen du,
         Together-en txat complementions endpoint-a erabiliz streaming bidez.
         """
-        prompt = f"""Analyze the following financial context and answer the question:
+        prompt = f"""Analyze the following context and answer the question:
         
 Context:
 {context}
@@ -138,7 +138,7 @@ async def main():
    
     # 2. urratsa: Testua gorde eta zatitu
     DATA_DIR.mkdir(exist_ok=True)
-    (DATA_DIR / "parsed.md").write_text(parsed_text)
+    (DATA_DIR / "parsed.md").write_text(parsed_text, encoding="utf-8")
     chunks = processor.chunk_text(parsed_text)
    
     # 3. urratsa: Hasieratu datu-base bektoriala eta dokumentuak gehitu
@@ -147,7 +147,7 @@ async def main():
     db.add_documents("financial_reports", chunks)
    
     # 4. urratsa: Bilatu eta erantzuna sortu
-    query = "¿Cúal es el pronostico o la previsión que harías con NVIDIA para el resto del año 2024? ¿En qué porcentaje subirán las acciones?"
+    query = "Make a summary to present this project in 1000 words."
    
     # Bilaketa semantikoa
     embeddings = list(db.embedder.embed([query]))
