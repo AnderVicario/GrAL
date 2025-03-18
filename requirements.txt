@@ -7,3 +7,5 @@ qdrant_client
 python-dotenv
 together
 yfinance
+GNews
+gradio
