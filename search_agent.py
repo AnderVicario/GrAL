@@ -1,6 +1,8 @@
 import datetime
 import logging
 import json
+import re
+import colorlog
 from agents.news_agent import NewsAnalysisAgent
 from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
@@ -14,10 +16,25 @@ from together import Together
 class SearchAgent:
     def __init__(self, user_prompt):
         load_dotenv()
-        logging.basicConfig(level=logging.INFO)
+        handler = colorlog.StreamHandler()
+        handler.setFormatter(
+            colorlog.ColoredFormatter(
+                "%(log_color)s%(levelname)-8s%(reset)s %(message)s",
+                log_colors={
+                    'DEBUG': 'cyan',
+                    'INFO': 'green',
+                    'WARNING': 'yellow',
+                    'ERROR': 'red',
+                    'CRITICAL': 'red,bg_white',
+                }
+            )
+        )
+        logger = colorlog.getLogger()
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
 
         self.llm_client = Together()
-        self.model_name = "curie:ft-user-prompt"
+        self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.user_prompt = user_prompt
         self.entities = []
         self.current_date = datetime.now()
@@ -88,7 +105,7 @@ Answer:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        return full_response
+        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
     def process_entities(self):
         """
@@ -96,40 +113,88 @@ Answer:
         crea instancias de FinancialEntity y las añade a la lista self.entities. También asigna la fecha de expiración.
         """
         response_text = self.identify_entities()
-        try:
-            # Se asume que la respuesta está en formato JSON para facilitar el parseo
-            entities_data = json.loads(response_text)
-            for ent in entities_data:
-                new_entity = FinancialEntity(
-                    name=ent.get("name"),
-                    ticker=ent.get("ticker"),
-                    entity_type=ent.get("entity_type"),
-                    sector=ent.get("sector"),
-                    country=ent.get("country"),
-                    primary_language=ent.get("primary_language"),
-                    search_terms=ent.get("search_terms")
-                )
-                self.entities.append(new_entity)
-        except json.JSONDecodeError:
-            # En caso de que la respuesta no sea un JSON, se parsea línea a línea.
-            for line in response_text.splitlines():
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    # Se asume el formato "EntityType: Name (Ticker)"
-                    entity_type, rest = line.split(":", 1)
-                    name_part, ticker_part = rest.strip().split("(", 1)
-                    name = name_part.strip()
-                    ticker = ticker_part.rstrip(")").strip()
+        logging.info(f"Respuesta del modelo: {response_text}")
+        
+        # Buscar y extraer solo la parte JSON de la respuesta
+        json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
+        if json_match:
+            json_text = json_match.group(0)
+            try:
+                entities_data = json.loads(json_text)
+                for ent in entities_data:
                     new_entity = FinancialEntity(
-                        name=name,
-                        ticker=ticker,
-                        entity_type=entity_type.strip()
+                        name=ent.get("name"),
+                        ticker=ent.get("ticker"),
+                        entity_type=ent.get("entity_type"),
+                        sector=ent.get("sector"),
+                        country=ent.get("country"),
+                        primary_language=ent.get("primary_language"),
+                        search_terms=ent.get("search_terms")
                     )
                     self.entities.append(new_entity)
-                except Exception as e:
-                    logging.error(f"Error al parsear la línea '{line}': {e}")
+                logging.info(f"Se procesaron {len(entities_data)} entidades correctamente.")
+            except json.JSONDecodeError as e:
+                logging.error(f"Error al decodificar JSON: {e}")
+                self._fallback_parsing(response_text)
+        else:
+            logging.warning("No se encontró una estructura JSON válida en la respuesta.")
+            self._fallback_parsing(response_text)
 
         # Asignar la fecha de expiración, por ejemplo, 1 día después de la fecha actual.
         self.expiration_date = self.current_date + timedelta(days=1)
+    
+    def _fallback_parsing(self, response_text):
+        """
+        Método de respaldo para extraer información cuando el formato JSON falla.
+        Intenta extraer información utilizando expresiones regulares.
+        """
+        logging.info("Utilizando método de parseo alternativo.")
+        
+        # Buscar patrones como "Name": "Nombre", "Ticker": "XYZ"
+        name_pattern = re.compile(r'"name"\s*:\s*"([^"]+)"', re.IGNORECASE)
+        ticker_pattern = re.compile(r'"ticker"\s*:\s*"([^"]+)"', re.IGNORECASE)
+        entity_type_pattern = re.compile(r'"entity_type"\s*:\s*"([^"]+)"', re.IGNORECASE)
+        sector_pattern = re.compile(r'"sector"\s*:\s*"([^"]+)"', re.IGNORECASE)
+        country_pattern = re.compile(r'"country"\s*:\s*"([^"]+)"', re.IGNORECASE)
+        
+        # Dividir por posibles separadores de entidades
+        entity_blocks = re.split(r'},\s*{', response_text)
+        
+        for block in entity_blocks:
+            name_match = name_pattern.search(block)
+            ticker_match = ticker_pattern.search(block)
+            
+            if name_match or ticker_match:
+                name = name_match.group(1) if name_match else None
+                ticker = ticker_match.group(1) if ticker_match else None
+                entity_type = entity_type_pattern.search(block).group(1) if entity_type_pattern.search(block) else "unknown"
+                sector = sector_pattern.search(block).group(1) if sector_pattern.search(block) else None
+                country = country_pattern.search(block).group(1) if country_pattern.search(block) else None
+                
+                new_entity = FinancialEntity(
+                    name=name,
+                    ticker=ticker,
+                    entity_type=entity_type,
+                    sector=sector,
+                    country=country
+                )
+                self.entities.append(new_entity)
+                logging.info(f"Entidad extraída por método alternativo: {name or ticker}")
+
+    def process_all(self):
+        """
+        Este método procesa todas las entidades financieras identificadas y genera un reporte consolidado.
+        """
+        # Procesa las entidades utilizando el método anterior.
+        self.process_entities()
+        report_lines = []
+        report_lines.append(f"Reporte generado el {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append(f"Fecha de expiración: {self.expiration_date.strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append("Entidades financieras identificadas:")
+        if self.entities:
+            for entity in self.entities:
+                report_lines.append(str(entity))
+        else:
+            report_lines.append("No se identificaron entidades.")
+        report = "\n".join(report_lines)
+        return report
