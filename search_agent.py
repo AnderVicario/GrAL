@@ -9,7 +9,7 @@ from agents.fundamental_agent import FundamentalAnalysisAgent
 from agents.technical_agent import TechnicalAnalysisAgent
 from entities.financial_entity import FinancialEntity
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime
 from together import Together
 
 
@@ -19,7 +19,7 @@ class SearchAgent:
         handler = colorlog.StreamHandler()
         handler.setFormatter(
             colorlog.ColoredFormatter(
-                "%(log_color)s%(levelname)-8s%(reset)s %(message)s",
+                "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
                 log_colors={
                     'DEBUG': 'cyan',
                     'INFO': 'green',
@@ -39,55 +39,55 @@ class SearchAgent:
         self.entities = []
         self.current_date = datetime.now()
         self.expiration_date = None
+        self.date_range = None
 
     def identify_entities(self):
-        # Prompt mejorado para capturar información de la consulta
         prompt = f"""
-You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
-The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
-If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
+    You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
+    The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
+    If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
 
-For each financial entity, return a JSON object with the following keys:
-- "name": the full name of the entity
-- "ticker": the ticker or symbol (if available, else null)
-- "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
-- "sector": if applicable (can be null)
-- "country": if applicable (can be null)
-- "primary_language": the primary language for news or information (can be null)
-- "search_terms": additional search terms relevant to the entity (can be null)
+    For each financial entity, return a JSON object with the following keys:
+    - "name": the full name of the entity
+    - "ticker": the ticker or symbol (if available, else null)
+    - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
+    - "sector": if applicable (can be null)
+    - "country": if applicable (can be null)
+    - "primary_language": the primary language for news or information (can be null)
+    - "search_terms": additional search terms relevant to the entity (can be null)
 
-Assume today's date is: {self.current_date}.
+    Assume today's date is: {self.current_date}.
 
-Example:
-User Query:
-"Tell me about Apple and Bitcoin trends."
-Answer:
-[
-  {{
-    "name": "Apple Inc.",
-    "ticker": "AAPL",
-    "entity_type": "company",
-    "sector": "Technology",
-    "country": "USA",
-    "primary_language": "English",
-    "search_terms": "stock, investment, technology, innovation"
-  }},
-  {{
-    "name": "Bitcoin",
-    "ticker": "BTC",
-    "entity_type": "cryptocurrency",
-    "sector": null,
-    "country": null,
-    "primary_language": "English",
-    "search_terms": "invest?, crypto, digital currency"
-  }}
-]
+    Example:
+    User Query:
+    "Tell me about Apple and Bitcoin trends."
+    Answer:
+    [
+    {{
+        "name": "Apple Inc.",
+        "ticker": "AAPL",
+        "entity_type": "company",
+        "sector": "Technology",
+        "country": "USA",
+        "primary_language": "English",
+        "search_terms": "stock, investment, technology, innovation"
+    }},
+    {{
+        "name": "Bitcoin",
+        "ticker": "BTC",
+        "entity_type": "cryptocurrency",
+        "sector": null,
+        "country": null,
+        "primary_language": "English",
+        "search_terms": "invest?, crypto, digital currency"
+    }}
+    ]
 
-User Query:
-{self.user_prompt}
+    User Query:
+    {self.user_prompt}
 
-Answer:
-"""
+    Answer:
+    """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
             model=self.model_name,
@@ -107,15 +107,62 @@ Answer:
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
+    def set_expiration_date(self):
+        prompt = f"""
+    Your task is to determine the appropriate expiration date for the financial query based on its investment horizon. Analyze the query and follow these rules:
+
+    1. If the query explicitly mentions a short-term perspective (e.g., "short term", "day trading", "immediate", "quick profits"), set the expiration date to 7 days after today's date.
+    2. If the query explicitly mentions a long-term perspective (e.g., "long term", "buy and hold", "retirement", "invest for the future"), set the expiration date to 365 days after today's date.
+    3. If the query does not specify any investment horizon, default to 30 days after today's date.
+
+    Return ONLY the expiration date in the format YYYY-MM-DD. Do not include any additional information.
+        
+    Assume today's date is: {self.current_date}.
+
+    User Query:
+    {self.user_prompt}
+    Answer:
+    """
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full_response = ""
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+        expiration_date_str = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+
+        try:
+            exp_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
+            exp_date = exp_date.replace(
+                hour=self.current_date.hour,
+                minute=self.current_date.minute,
+                second=self.current_date.second,
+                microsecond=self.current_date.microsecond
+            )
+            self.expiration_date = exp_date.strftime('%Y-%m-%d %H:%M:%S')
+            self.date_range = (self.current_date, exp_date)
+            
+        except ValueError as e:
+            logging.error(f"Error parsing expiration date: {e}")
+            self.expiration_date = expiration_date_str
+            self.date_range = None
+
     def process_entities(self):
-        """
-        Este método procesa la respuesta del modelo para extraer la información de las entidades financieras,
-        crea instancias de FinancialEntity y las añade a la lista self.entities. También asigna la fecha de expiración.
-        """
+        self.set_expiration_date()
         response_text = self.identify_entities()
         logging.info(f"Respuesta del modelo: {response_text}")
         
-        # Buscar y extraer solo la parte JSON de la respuesta
         json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
         if json_match:
             json_text = json_match.group(0)
@@ -137,64 +184,73 @@ Answer:
                 logging.error(f"Error al decodificar JSON: {e}")
                 self._fallback_parsing(response_text)
         else:
-            logging.warning("No se encontró una estructura JSON válida en la respuesta.")
-            self._fallback_parsing(response_text)
-
-        # Asignar la fecha de expiración, por ejemplo, 1 día después de la fecha actual.
-        self.expiration_date = self.current_date + timedelta(days=1)
-    
-    def _fallback_parsing(self, response_text):
-        """
-        Método de respaldo para extraer información cuando el formato JSON falla.
-        Intenta extraer información utilizando expresiones regulares.
-        """
-        logging.info("Utilizando método de parseo alternativo.")
-        
-        # Buscar patrones como "Name": "Nombre", "Ticker": "XYZ"
-        name_pattern = re.compile(r'"name"\s*:\s*"([^"]+)"', re.IGNORECASE)
-        ticker_pattern = re.compile(r'"ticker"\s*:\s*"([^"]+)"', re.IGNORECASE)
-        entity_type_pattern = re.compile(r'"entity_type"\s*:\s*"([^"]+)"', re.IGNORECASE)
-        sector_pattern = re.compile(r'"sector"\s*:\s*"([^"]+)"', re.IGNORECASE)
-        country_pattern = re.compile(r'"country"\s*:\s*"([^"]+)"', re.IGNORECASE)
-        
-        # Dividir por posibles separadores de entidades
-        entity_blocks = re.split(r'},\s*{', response_text)
-        
-        for block in entity_blocks:
-            name_match = name_pattern.search(block)
-            ticker_match = ticker_pattern.search(block)
-            
-            if name_match or ticker_match:
-                name = name_match.group(1) if name_match else None
-                ticker = ticker_match.group(1) if ticker_match else None
-                entity_type = entity_type_pattern.search(block).group(1) if entity_type_pattern.search(block) else "unknown"
-                sector = sector_pattern.search(block).group(1) if sector_pattern.search(block) else None
-                country = country_pattern.search(block).group(1) if country_pattern.search(block) else None
-                
-                new_entity = FinancialEntity(
-                    name=name,
-                    ticker=ticker,
-                    entity_type=entity_type,
-                    sector=sector,
-                    country=country
-                )
-                self.entities.append(new_entity)
-                logging.info(f"Entidad extraída por método alternativo: {name or ticker}")
+            logging.error("No se encontró una estructura JSON válida en la respuesta.")
 
     def process_all(self):
-        """
-        Este método procesa todas las entidades financieras identificadas y genera un reporte consolidado.
-        """
-        # Procesa las entidades utilizando el método anterior.
         self.process_entities()
+        
         report_lines = []
-        report_lines.append(f"Reporte generado el {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append(f"Fecha de expiración: {self.expiration_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append("Entidades financieras identificadas:")
-        if self.entities:
-            for entity in self.entities:
-                report_lines.append(str(entity))
-        else:
-            report_lines.append("No se identificaron entidades.")
-        report = "\n".join(report_lines)
-        return report
+        report_lines.append(f"Report generated at: {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}")
+        report_lines.append(f"Expedition date at: {self.expiration_date}")
+        report_lines.append("\n--- Report Summary ---\n")
+
+        # Procesar cada entidad con los agentes correspondientes
+        for entity in self.entities:
+            report_lines.append(f"### Analysis for {entity.name} ({entity.ticker}) ###\n")
+
+            # Agente de noticias
+            news_agent = NewsAnalysisAgent(
+                company=entity.name,
+                search_terms=entity.search_terms,
+                primary_language=entity.primary_language,
+                date_range=self.date_range
+            )
+            news_result = news_agent.process()
+            if isinstance(news_result, dict):
+                news_result = json.dumps(news_result, indent=2)
+            report_lines.append("**News Analysis:**")
+            report_lines.append(news_result)
+            report_lines.append("\n")
+
+            # # Agente macroeconómico
+            # macro_agent = MacroeconomicAnalysisAgent(
+            #     entity_type=entity.entity_type,
+            #     sector=entity.sector,
+            #     country=entity.country,
+            #     date_range=self.date_range
+            # )
+            # macro_result = macro_agent.process()
+            # report_lines.append("**Macroeconomic Analysis:**")
+            # report_lines.append(macro_result)
+            # report_lines.append("\n")
+
+            # # Agente de análisis fundamental
+            # fundamental_agent = FundamentalAnalysisAgent(
+            #     company=entity.name,
+            #     ticker=entity.ticker,
+            #     sector=entity.sector
+            # )
+            # fundamental_result = fundamental_agent.process()
+            # report_lines.append("**Fundamental Analysis:**")
+            # report_lines.append(fundamental_result)
+            # report_lines.append("\n")
+
+            # # Agente de análisis técnico
+            # technical_agent = TechnicalAnalysisAgent(
+            #     ticker=entity.ticker,
+            #     entity_type=entity.entity_type,
+            #     date_range=self.date_range
+            # )
+            # technical_result = technical_agent.process()
+            # report_lines.append("**Technical Analysis:**")
+            # report_lines.append(technical_result)
+            # report_lines.append("\n")
+            
+            # Separador entre entidades
+            report_lines.append("-" * 40)
+            report_lines.append("\n")
+
+        # Unir todos los reportes en un solo string
+        final_report = "\n".join(report_lines)
+        
+        return final_report
