@@ -1,4 +1,4 @@
-from search_agent import SearchAgent
+from agents.search_agent import SearchAgent
 
 def main():
     prompt = "I want to invest in Tesla and Bitcoin. What can you tell me about them?"
