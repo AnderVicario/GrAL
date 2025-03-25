@@ -41,7 +41,7 @@ class SearchAgent:
         self.expiration_date = None
         self.date_range = None
 
-    def identify_entities(self):
+    def _identify_entities(self):
         prompt = f"""
     You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
     The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
@@ -53,7 +53,7 @@ class SearchAgent:
     - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
     - "sector": if applicable (can be null)
     - "country": if applicable (can be null)
-    - "primary_language": the primary language for news or information (can be null)
+    - "primary_language": the primary language for news or information (can be null). Use the ISO 639-1 language code (e.g., "en" for English).
     - "search_terms": additional search terms relevant to the entity (can be null)
 
     Assume today's date is: {self.current_date}.
@@ -69,7 +69,7 @@ class SearchAgent:
         "entity_type": "company",
         "sector": "Technology",
         "country": "USA",
-        "primary_language": "English",
+        "primary_language": "en",
         "search_terms": "stock, investment, technology, innovation"
     }},
     {{
@@ -78,8 +78,8 @@ class SearchAgent:
         "entity_type": "cryptocurrency",
         "sector": null,
         "country": null,
-        "primary_language": "English",
-        "search_terms": "invest?, crypto, digital currency"
+        "primary_language": "en",
+        "search_terms": "invest, crypto, digital currency"
     }}
     ]
 
@@ -107,7 +107,7 @@ class SearchAgent:
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
-    def set_expiration_date(self):
+    def _set_expiration_date(self):
         prompt = f"""
     Your task is to determine the appropriate expiration date for the financial query based on its investment horizon. Analyze the query and follow these rules:
 
@@ -158,7 +158,7 @@ class SearchAgent:
             self.expiration_date = expiration_date_str
             self.date_range = None
 
-    def process_entities(self):
+    def _process_entities(self):
         self.set_expiration_date()
         response_text = self.identify_entities()
         logging.info(f"Respuesta del modelo: {response_text}")
@@ -200,7 +200,9 @@ class SearchAgent:
 
             # Agente de noticias
             news_agent = NewsAnalysisAgent(
-                company=entity.name,
+                entity=entity.name,
+                sector=entity.sector,
+                country=entity.country,
                 search_terms=entity.search_terms,
                 primary_language=entity.primary_language,
                 date_range=self.date_range
