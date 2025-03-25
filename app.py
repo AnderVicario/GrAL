@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for
+import os
 
-app = Flask(__name__, template_folder='/web/templates')
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))
+app = Flask(__name__, template_folder=template_dir)
 
 # Variable global para almacenar la conversación (no recomendado para producción)
 conversation = []
