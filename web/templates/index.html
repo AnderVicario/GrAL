@@ -1,28 +1,109 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>ChatGPT Style Interface</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <h2>ChatGPT Style Interface</h2>
-        </div>
-        <div class="chat-window">
-            {% for msg in conversation %}
-            <div class="message {{ msg.sender | lower }}">
-                <strong>{{ msg.sender }}:</strong> {{ msg.message }}
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&amp;family=Manrope%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+
+    <title>Finantial Advisor</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  </head>
+  <body>
+    <div class="relative flex size-full min-h-screen flex-col bg-[#1C1D22] dark group/design-root overflow-x-hidden" style='font-family: Manrope, "Noto Sans", sans-serif;'>
+      <div class="layout-container flex h-full grow flex-col">
+        <div class="px-40 flex flex-1 justify-center py-5">
+          <div class="layout-content-container flex flex-col w-[512px] max-w-[512px] py-5 max-w-[960px] flex-1">
+            <div class="flex flex-wrap justify-between gap-3 p-4">
+              <div class="flex min-w-72 flex-col gap-3">
+                <p class="text-[#F9FAFA] text-4xl font-black leading-tight tracking-[-0.033em]">Chat with AI</p>
+                <p class="text-[#D5D6DD] text-base font-normal leading-normal">AI can make mistakes. Consider checking important information.</p>
+              </div>
+              <button
+                class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#3C3F4A] text-[#F9FAFA] text-sm font-bold leading-normal tracking-[0.015em]"
+              >
+                <span class="truncate">New Chat</span>
+              </button>
             </div>
-            {% endfor %}
+            <div class="flex items-end gap-3 p-4">
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'
+              ></div>
+              <div class="flex flex-1 flex-col gap-1 items-start">
+                <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">AI</p>
+                <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">Hello, I'm an AI assistant. Ask me anything.</p>
+              </div>
+            </div>
+            <div class="flex items-end gap-3 p-4 justify-end">
+              <div class="flex flex-1 flex-col gap-1 items-end">
+                <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">User</p>
+                <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">What is the meaning of life?</p>
+              </div>
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'
+              ></div>
+            </div>
+            <div class="flex items-end gap-3 p-4">
+              <div
+                class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                style='background-image: url("https://cdn.usegalileo.ai/sdxl10/4ac9fb50-6ae0-44b6-994d-caf00c3bdb32.png");'
+              ></div>
+              <div class="flex flex-1 flex-col gap-1 items-start">
+                <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">AI</p>
+                <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">
+                  The meaning of life is a profound philosophical and existential question that has been debated and contemplated throughout human history. Unfortunately, there is
+                  no definitive or universally agreed upon answer. Some perspectives on the potential meanings of life include:Finding happiness, fulfillment, and living life to
+                  the fullest. The meaning is the journey itself and making the most of this life we have.Discovering and pursuing one's purpose, passion, and using our talents to
+                  help others and make the world a little better.Seeking spiritual enlightenment, transcendence to something larger than the self, and connecting to the sacred in
+                  some way. For some, the meaning is found in religious faith or spirituality.Contributing value to society, leaving a positive legacy for future generations,
+                  making an impact through ethics or accomplishments. Finding meaning in making a difference.Experiencing as much love, pleasure, curiosity, and human connection as
+                  possible during our brief lifetime. Simply experiencing life itself is meaningful to some.In the end, the meaning of life is very personal and dependent on
+                  individual beliefs, values, and perspectives on existence. There may be no single universal meaning, but rather the meaning we each assign to our experiences and
+                  paths through life. The search and discovery itself brings purpose and meaning for many. It is largely an open-ended question with a wide array of possible
+                  responses.
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center px-4 py-3 gap-3 @container">
+              <label class="flex flex-col min-w-40 h-12 flex-1">
+                <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
+                  <input
+                    placeholder="Chat with me..."
+                    class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F9FAFA] focus:outline-0 focus:ring-0 border-none bg-[#3C3F4A] focus:border-none h-full placeholder:text-[#D5D6DD] px-4 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
+                    value=""
+                  />
+                  <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
+                    <div class="flex items-center gap-4 justify-end">
+                      <div class="flex items-center gap-1">
+                        <button class="flex items-center justify-center p-1.5">
+                          <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                              <path
+                                d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z"
+                              ></path>
+                            </svg>
+                          </div>
+                        </button>
+                      </div>
+                      <button
+                        class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block"
+                      >
+                        <span class="truncate">Send</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
-        <div class="chat-input">
-            <form method="post" action="/">
-                <input type="text" name="user_input" placeholder="Escribe tu mensaje aquí..." required>
-                <button type="submit">Enviar</button>
-            </form>
-        </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>
