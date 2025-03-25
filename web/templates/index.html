@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ChatGPT Style Interface</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>ChatGPT Style Interface</h2>
+        </div>
+        <div class="chat-window">
+            {% for msg in conversation %}
+            <div class="message {{ msg.sender | lower }}">
+                <strong>{{ msg.sender }}:</strong> {{ msg.message }}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="chat-input">
+            <form method="post" action="/">
+                <input type="text" name="user_input" placeholder="Escribe tu mensaje aquí..." required>
+                <button type="submit">Enviar</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
