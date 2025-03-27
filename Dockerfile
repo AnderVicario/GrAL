@@ -7,7 +7,10 @@ WORKDIR /app
 # Kopiatu behar diren fitxategiak
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
+RUN pybabel extract -F babel.cfg -o messages.pot .
+RUN cat messages.pot
 
 # Flask ataka erakutsi
 EXPOSE 5000
