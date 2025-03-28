@@ -8,7 +8,7 @@
       href="https://fonts.googleapis.com/css2?display=swap&amp;family=Manrope%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
     />
 
-    <title>{{ gettext("Financial Advisor") }}</title>
+    <title>{{ translations.title }}</title>
     <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
 
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -20,19 +20,19 @@
           <div class="layout-content-container flex flex-col w-full py-5 flex-1">
             <div class="flex flex-wrap justify-between gap-3 p-4 mb-4 border-b border-gray-300 border-opacity-30">
               <div class="flex min-w-72 flex-col gap-3">
-                <p class="text-[#F9FAFA] text-4xl font-black leading-tight tracking-[-0.033em]">{{ gettext("Financial Advisor") }}</p>
-                <p class="text-[#D5D6DD] text-base font-normal leading-normal">{{ gettext("AI can make mistakes. Consider checking important information.") }}</p>
+                <p class="text-[#F9FAFA] text-4xl font-black leading-tight tracking-[-0.033em]">{{ translations.title }}</p>
+                <p class="text-[#D5D6DD] text-base font-normal leading-normal">{{ translations.subtitle }}</p>
               </div>
               <div class="flex items-center gap-3">
                 <div class="relative group">
                     <button class="flex items-center justify-center h-10 px-4 rounded-xl bg-[#3C3F4A] text-[#F9FAFA]">
-                        {{ gettext("Language") }}
+                        {{ translations.lang }}
                     </button>
                     <div class="hidden group-hover:block absolute right-0 mt-2 w-32 bg-[#3C3F4A] rounded-lg shadow-lg">
-                        <a href="{{ url_for('set_lang', lang='en'") }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
+                        <a href="{{ url_for('set_lang', lang='en_US') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
                             English
                         </a>
-                        <a href="{{ url_for('set_lang', lang='es'") }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
+                        <a href="{{ url_for('set_lang', lang='eu_ES') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
                             Euskara
                         </a>
                     </div>
@@ -46,14 +46,14 @@
                   style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'
                 ></div>
                 <div class="flex flex-1 flex-col gap-1 items-start">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ gettext("AI") }}</p>
-                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">{{ gettext("Hello, I'm an AI assistant. Ask me anything.") }}</p>
+                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ translations.ai }}</p>
+                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">{{ translations.message1 }}</p>
                 </div>
               </div>
               <div class="flex items-end gap-3 p-4 justify-end">
                 <div class="flex flex-1 flex-col gap-1 items-end">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">{{ gettext("User") }}</p>
-                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">{{ gettext("What is the meaning of life?") }}</p>
+                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">{{ translations.user }}</p>
+                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">{{ translations.message2 }}</p>
                 </div>
                 <div
                   class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
@@ -66,9 +66,9 @@
                   style='background-image: url("https://cdn.usegalileo.ai/sdxl10/4ac9fb50-6ae0-44b6-994d-caf00c3bdb32.png");'
                 ></div>
                 <div class="flex flex-1 flex-col gap-1 items-start">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ gettext("AI") }}</p>
+                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ translations.ai }}</p>
                   <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">
-                    {{ gettext("The meaning of life is a profound philosophical and existential question that has been debated and contemplated throughout human history...") }}
+                    {{ translations.message3 }}
                   </p>
                 </div>
               </div>
@@ -98,7 +98,7 @@
                       <button
                         class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block"
                       >
-                        <span class="truncate">{{ gettext("Send") }}</span>
+                        <span class="truncate">{{ translations.send }}</span>
                       </button>
                     </div>
                   </div>
