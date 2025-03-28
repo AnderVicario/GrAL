@@ -23,91 +23,86 @@
                 <p class="text-[#F9FAFA] text-4xl font-black leading-tight tracking-[-0.033em]">{{ translations.title }}</p>
                 <p class="text-[#D5D6DD] text-base font-normal leading-normal">{{ translations.subtitle }}</p>
               </div>
-              <div class="flex items-center gap-3">
-                <div class="relative group">
-                    <button class="flex items-center justify-center h-10 px-4 rounded-xl bg-[#3C3F4A] text-[#F9FAFA]">
-                        {{ translations.lang }}
-                    </button>
-                    <div class="hidden group-hover:block absolute right-0 mt-2 w-32 bg-[#3C3F4A] rounded-lg shadow-lg">
-                        <a href="{{ url_for('set_lang', lang='en_US') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
-                            English
-                        </a>
-                        <a href="{{ url_for('set_lang', lang='eu_ES') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB]">
-                            Euskara
-                        </a>
-                    </div>
+              <div class="relative group">
+                <button id="langToggle" class="flex items-center justify-center h-10 px-4 rounded-xl bg-[#3C3F4A] text-[#F9FAFA]">
+                  {{ translations.lang }}
+                </button>
+                <div id="langDropdown" class="hidden absolute right-0 mt-1 bg-[#3C3F4A] rounded-lg shadow-lg z-50">
+                  <a href="{{ url_for('set_lang', lang='en_US') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB] hover:rounded-lg">
+                    English
+                  </a>
+                  <a href="{{ url_for('set_lang', lang='eu_ES') }}" class="block px-4 py-2 text-[#F9FAFA] hover:bg-[#607AFB] hover:rounded-lg">
+                    Euskara
+                  </a>
                 </div>
-              </div>
+              </div>             
             </div>
+            
             <div class="flex-1 overflow-y-auto pr-2 mb-4 space-y-4" style="scrollbar-width: auto; scrollbar-color: #3C3F4A #1C1D22;">
-              <div class="flex items-end gap-3 p-4">
-                <div
-                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                  style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'
-                ></div>
-                <div class="flex flex-1 flex-col gap-1 items-start">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ translations.ai }}</p>
-                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">{{ translations.message1 }}</p>
-                </div>
-              </div>
-              <div class="flex items-end gap-3 p-4 justify-end">
-                <div class="flex flex-1 flex-col gap-1 items-end">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">{{ translations.user }}</p>
-                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">{{ translations.message2 }}</p>
-                </div>
-                <div
-                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                  style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'
-                ></div>
-              </div>
-              <div class="flex items-end gap-3 p-4">
-                <div
-                  class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                  style='background-image: url("https://cdn.usegalileo.ai/sdxl10/4ac9fb50-6ae0-44b6-994d-caf00c3bdb32.png");'
-                ></div>
-                <div class="flex flex-1 flex-col gap-1 items-start">
-                  <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ translations.ai }}</p>
-                  <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">
-                    {{ translations.message3 }}
-                  </p>
-                </div>
-              </div>
+              {% for message in conversation %}
+                {% if message.sender == translations.user %}
+                  <!-- Mensaje del usuario -->
+                  <div class="flex items-end gap-3 p-4 justify-end">
+                    <div class="flex flex-1 flex-col gap-1 items-end">
+                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">{{ message.sender }}</p>
+                      <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">{{ message.message }}</p>
+                    </div>
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'></div>
+                  </div>
+                {% else %}
+                  <!-- Mensaje del AI -->
+                  <div class="flex items-end gap-3 p-4">
+                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
+                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'></div>
+                    <div class="flex flex-1 flex-col gap-1 items-start">
+                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ message.sender }}</p>
+                      <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">{{ message.message }}</p>
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
             </div>
             
             <div class="sticky bottom-0 left-0 right-0 flex items-center px-4 py-3 gap-3 @container bg-[#1C1D22]">
-              <label class="flex flex-col min-w-40 h-12 flex-1">
-                <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
-                  <input
-                    placeholder="Chat with me..."
-                    class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F9FAFA] focus:outline-0 focus:ring-0 border-none bg-[#3C3F4A] focus:border-none h-full placeholder:text-[#D5D6DD] px-4 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
-                    value=""
-                  />
-                  <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
-                    <div class="flex items-center gap-4 justify-end">
-                      <div class="flex items-center gap-1">
-                        <button class="flex items-center justify-center p-1.5">
-                          <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
-                              <path
-                                d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z"
-                              ></path>
-                            </svg>
-                          </div>
+              <form method="POST" action="{{ url_for('index') }}" class="w-full flex gap-3">
+                <label class="flex flex-col min-w-40 h-12 flex-1">
+                  <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
+                    <input
+                      name="user_input"
+                      placeholder="Chat with me..."
+                      class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F9FAFA] focus:outline-0 focus:ring-0 border-none bg-[#3C3F4A] focus:border-none h-full placeholder:text-[#D5D6DD] px-4 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
+                      value=""
+                    />
+                    <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
+                      <div class="flex items-center gap-4 justify-end">
+                        <div class="flex items-center gap-1">
+                          <button class="flex items-center justify-center p-1.5" type="button">
+                            <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
+                                <path
+                                  d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z"
+                                ></path>
+                              </svg>
+                            </div>
+                          </button>
+                        </div>
+                        <button
+                          type="submit"
+                          class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block"
+                        >
+                          <span class="truncate">{{ translations.send }}</span>
                         </button>
                       </div>
-                      <button
-                        class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block"
-                      >
-                        <span class="truncate">{{ translations.send }}</span>
-                      </button>
                     </div>
                   </div>
-                </div>
-              </label>
+                </label>
+              </form>
             </div>
           </div>
         </div>
       </div>
     </div>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
   </body>
 </html>

@@ -151,7 +151,17 @@ class SearchAgent:
                 microsecond=self.current_date.microsecond
             )
             self.expiration_date = exp_date.strftime('%Y-%m-%d %H:%M:%S')
-            self.date_range = (self.current_date, exp_date)
+
+            # Kalkulatu tartea
+            delta_days = (exp_date - self.current_date).days
+            if delta_days < 1:
+                self.date_range = f"{(exp_date - self.current_date).seconds // 3600}h"
+            elif delta_days < 30:
+                self.date_range = f"{delta_days}d"
+            elif delta_days < 365:
+                self.date_range = f"{delta_days // 30}m"
+            else:
+                self.date_range = f"{delta_days // 365}y"
             
         except ValueError as e:
             logging.error(f"Error parsing expiration date: {e}")
@@ -159,8 +169,8 @@ class SearchAgent:
             self.date_range = None
 
     def _process_entities(self):
-        self.set_expiration_date()
-        response_text = self.identify_entities()
+        self._set_expiration_date()
+        response_text = self._identify_entities()
         logging.info(f"Respuesta del modelo: {response_text}")
         
         json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
@@ -187,7 +197,7 @@ class SearchAgent:
             logging.error("No se encontró una estructura JSON válida en la respuesta.")
 
     def process_all(self):
-        self.process_entities()
+        self._process_entities()
         
         report_lines = []
         report_lines.append(f"Report generated at: {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -253,6 +263,7 @@ class SearchAgent:
             report_lines.append("\n")
 
         # Unir todos los reportes en un solo string
-        final_report = "\n".join(report_lines)
+        print(report_lines)
+        final_report = "\n".join(map(str, report_lines))
         
         return final_report

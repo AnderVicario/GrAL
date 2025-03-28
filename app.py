@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session
+from main import main
 import os, locale, json, glob
 
 # Configuración básica de la aplicación
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))
-app = Flask(__name__, template_folder=template_dir)
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'static'))
+app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
 app.secret_key = 'clave_secreta'  # Necesaria para usar sesiones
 
@@ -21,6 +23,10 @@ for lang in language_list:
 
 conversation = []
 
+@app.before_request
+def initialize_conversation():
+    if 'conversation' not in session:
+        session['conversation'] = []
 
 @app.route("/set_lang/<lang>")
 def set_lang(lang):
@@ -32,22 +38,34 @@ def set_lang(lang):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    # Obtener el idioma seleccionado de la sesión o usar por defecto
     lang_code = session.get('app_language', 'en_US')
     translations = languages.get(lang_code, {})
-
-    print(translations)
     
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
         if user_input:
-            # Generar una respuesta placeholder para el bot
-            bot_response = f"Bot response (placeholder) for: {user_input}"
-            conversation.append({"sender": translations.get("user", "User"), "message": user_input})
-            conversation.append({"sender": translations.get("ai", "AI Assistant"), "message": bot_response})
+            # Añadir mensaje del usuario
+            session['conversation'].append({
+                "sender": translations.get("user", "User"),
+                "message": user_input
+            })
+            
+            # Obtener respuesta del bot
+            bot_response = main(user_input)  # Asegúrate que esta función existe
+            
+            # Añadir respuesta del bot
+            session['conversation'].append({
+                "sender": translations.get("ai", "AI"),
+                "message": bot_response
+            })
+            
+            session.modified = True  # Necesario para actualizar la sesión
+            
         return redirect(url_for("index"))
     
-    return render_template("index.html", conversation=conversation, translations=translations)
+    return render_template("index.html", 
+                         translations=translations,
+                         conversation=session.get('conversation', []))
 
 
 if __name__ == "__main__":

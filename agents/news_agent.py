@@ -31,7 +31,7 @@ class NewsAnalysisAgent:
         queries = [self.entity]
         
         if self.country:
-            queries.append(f"{self.entity} {self.country_name}")
+            queries.append(f"{self.entity} {self.country}")
         
         if self.sector:
             queries.append(f"{self.entity} {self.sector}")
