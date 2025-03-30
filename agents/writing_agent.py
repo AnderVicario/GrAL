@@ -84,4 +84,7 @@ class MarkdownAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        full_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        final_response = re.sub(r"^```markdown\s*", "", full_response, flags=re.DOTALL)
+        final_response = re.sub(r"\s*```$", "", final_response, flags=re.DOTALL)
+        return final_response.strip()
