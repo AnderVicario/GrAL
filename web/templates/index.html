@@ -44,20 +44,30 @@
                   <!-- Mensaje del usuario -->
                   <div class="flex items-end gap-3 p-4 justify-end">
                     <div class="flex flex-1 flex-col gap-1 items-end">
-                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">{{ message.sender }}</p>
-                      <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA]">{{ message.message }}</p>
+                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">
+                        {{ message.sender }}
+                      </p>
+                      <p class="text-base font-normal leading-normal max-w-[760px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA] break-words">
+                        {{ message.message }}
+                      </p>
                     </div>
                     <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'></div>
+                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'>
+                    </div>
                   </div>
                 {% else %}
                   <!-- Mensaje del AI -->
                   <div class="flex items-end gap-3 p-4">
                     <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'></div>
+                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'>
+                    </div>
                     <div class="flex flex-1 flex-col gap-1 items-start">
-                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">{{ message.sender }}</p>
-                      <p class="text-base font-normal leading-normal flex max-w-[360px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA]">{{ message.message }}</p>
+                      <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">
+                        {{ message.sender }}
+                      </p>
+                      <p class="text-base font-normal leading-normal max-w-[760px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
+                        {{ message.message }}
+                      </p>
                     </div>
                   </div>
                 {% endif %}
@@ -75,22 +85,22 @@
                       value=""
                     />
                     <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
-                      <div class="flex items-center gap-4 justify-end">
+                      <div class="flex items-center gap-2 justify-end">
                         <div class="flex items-center gap-1">
                           <button class="flex items-center justify-center p-1.5" type="button">
                             <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
-                                <path
-                                  d="M209.66,122.34a8,8,0,0,1,0,11.32l-82.05,82a56,56,0,0,1-79.2-79.21L147.67,35.73a40,40,0,1,1,56.61,56.55L105,193A24,24,0,1,1,71,159L154.3,74.38A8,8,0,1,1,165.7,85.6L82.39,170.31a8,8,0,1,0,11.27,11.36L192.93,81A24,24,0,1,0,159,47L59.76,147.68a40,40,0,1,0,56.53,56.62l82.06-82A8,8,0,0,1,209.66,122.34Z"
-                                ></path>
-                              </svg>
+                              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.25"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-files"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 3v4a1 1 0 0 0 1 1h4" /><path d="M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2z" /><path d="M16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2" /></svg>                            
                             </div>
                           </button>
                         </div>
-                        <button
-                          type="submit"
-                          class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block"
-                        >
+                        <div class="flex items-center gap-1">
+                          <button class="flex items-center justify-center p-1.5" type="button" id="advancedToggle">
+                            <div class="text-[#D5D6DD]" id="advancedIcon" data-icon="Advanced" data-size="20px" data-weight="regular">
+                              <svg xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.25"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cpu-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M8 10v-2h2m6 6v2h-2m-4 0h-2v-2m8 -4v-2h-2" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg>
+                            </div>
+                          </button>
+                        </div>
+                        <button type="submit" class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block">
                           <span class="truncate">{{ translations.send }}</span>
                         </button>
                       </div>

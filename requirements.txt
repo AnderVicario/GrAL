@@ -1,3 +1,4 @@
+flask-Session
 flask
 requests
 numpy
@@ -11,3 +12,5 @@ yfinance
 GNews
 gradio
 colorlog
+bs4
+lxml

@@ -43,51 +43,51 @@ class SearchAgent:
 
     def _identify_entities(self):
         prompt = f"""
-    You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
-    The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
-    If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
+        You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
+        The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
+        If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
 
-    For each financial entity, return a JSON object with the following keys:
-    - "name": the full name of the entity
-    - "ticker": the ticker or symbol (if available, else null)
-    - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
-    - "sector": if applicable (can be null)
-    - "country": if applicable (can be null)
-    - "primary_language": the primary language for news or information (can be null). Use the ISO 639-1 language code (e.g., "en" for English).
-    - "search_terms": additional search terms relevant to the entity (can be null)
+        For each financial entity, return a JSON object with the following keys:
+        - "name": the full name of the entity
+        - "ticker": the ticker or symbol (if available, else null)
+        - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
+        - "sector": if applicable (can be null)
+        - "country": if applicable (can be null)
+        - "primary_language": the primary language for news or information (can be null). Use the ISO 639-1 language code (e.g., "en" for English).
+        - "search_terms": additional search terms relevant to the entity (can be null)
 
-    Assume today's date is: {self.current_date}.
+        Assume today's date is: {self.current_date}.
 
-    Example:
-    User Query:
-    "Tell me about Apple and Bitcoin trends."
-    Answer:
-    [
-    {{
-        "name": "Apple Inc.",
-        "ticker": "AAPL",
-        "entity_type": "company",
-        "sector": "Technology",
-        "country": "USA",
-        "primary_language": "en",
-        "search_terms": "stock, investment, technology, innovation"
-    }},
-    {{
-        "name": "Bitcoin",
-        "ticker": "BTC",
-        "entity_type": "cryptocurrency",
-        "sector": null,
-        "country": null,
-        "primary_language": "en",
-        "search_terms": "invest, crypto, digital currency"
-    }}
-    ]
+        Example:
+        User Query:
+        "Tell me about Apple and Bitcoin trends."
+        Answer:
+        [
+        {{
+            "name": "Apple Inc.",
+            "ticker": "AAPL",
+            "entity_type": "company",
+            "sector": "Technology",
+            "country": "USA",
+            "primary_language": "en",
+            "search_terms": "stock, investment, technology, innovation"
+        }},
+        {{
+            "name": "Bitcoin",
+            "ticker": "BTC",
+            "entity_type": "cryptocurrency",
+            "sector": null,
+            "country": null,
+            "primary_language": "en",
+            "search_terms": "invest, crypto, digital currency"
+        }}
+        ]
 
-    User Query:
-    {self.user_prompt}
+        User Query:
+        {self.user_prompt}
 
-    Answer:
-    """
+        Answer:
+        """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
             model=self.model_name,
@@ -109,20 +109,25 @@ class SearchAgent:
 
     def _set_expiration_date(self):
         prompt = f"""
-    Your task is to determine the appropriate expiration date for the financial query based on its investment horizon. Analyze the query and follow these rules:
+        Your task is to determine the appropriate expiration date for the financial query based on its investment horizon. Carefully analyze the query and follow these strict rules:
 
-    1. If the query explicitly mentions a short-term perspective (e.g., "short term", "day trading", "immediate", "quick profits"), set the expiration date to 7 days after today's date.
-    2. If the query explicitly mentions a long-term perspective (e.g., "long term", "buy and hold", "retirement", "invest for the future"), set the expiration date to 365 days after today's date.
-    3. If the query does not specify any investment horizon, default to 30 days after today's date.
+        1. If the query mentions something related with **a very short-term perspective** (e.g., "24h", "last hour", "intraday", "scalping", "high-frequency trading", "immediate action"), set the expiration date to **1 to 3 days** after today's date, depending on the urgency implied.
+        2. If the query mentions something related with **a short-term perspective** (e.g., "this week", "short term", "day trading", "quick profits"), set the expiration date to **5 to 10 days** after today's date, allowing for market fluctuations.
+        3. If the query mentions something related with **a long-term perspective** (e.g., "long term", "buy and hold", "retirement", "invest for the future"), set the expiration date to exactly **365 days** after today's date.
+        4. If the query does not specify an investment horizon, default to **30 days** after today's date.
 
-    Return ONLY the expiration date in the format YYYY-MM-DD. Do not include any additional information.
-        
-    Assume today's date is: {self.current_date}.
+        ### Output IMPORTANT Requirements:
+        - Return **ONLY** the expiration date.
+        - The format must be strictly `YYYY-MM-DD` (e.g., `2025-04-29`).
+        - Do **NOT** include any additional text, explanations, or new lines.
 
-    User Query:
-    {self.user_prompt}
-    Answer:
-    """
+        Assume today's date is: {self.current_date}.
+
+        User Query:
+        {self.user_prompt}
+
+        Expiration Date:
+        """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
             model=self.model_name,
@@ -151,17 +156,16 @@ class SearchAgent:
                 microsecond=self.current_date.microsecond
             )
             self.expiration_date = exp_date.strftime('%Y-%m-%d %H:%M:%S')
+            print(f"Fecha de expiración: {self.expiration_date}")
 
             # Kalkulatu tartea
             delta_days = (exp_date - self.current_date).days
             if delta_days < 1:
                 self.date_range = f"{(exp_date - self.current_date).seconds // 3600}h"
-            elif delta_days < 30:
+            elif delta_days < 60:
                 self.date_range = f"{delta_days}d"
-            elif delta_days < 365:
-                self.date_range = f"{delta_days // 30}m"
             else:
-                self.date_range = f"{delta_days // 365}y"
+                self.date_range = None
             
         except ValueError as e:
             logging.error(f"Error parsing expiration date: {e}")
@@ -196,7 +200,7 @@ class SearchAgent:
         else:
             logging.error("No se encontró una estructura JSON válida en la respuesta.")
 
-    def process_all(self):
+    def process_all(self, advanced_mode=False):
         self._process_entities()
         
         report_lines = []
@@ -215,7 +219,8 @@ class SearchAgent:
                 country=entity.country,
                 search_terms=entity.search_terms,
                 primary_language=entity.primary_language,
-                date_range=self.date_range
+                date_range=self.date_range,
+                advanced_mode=advanced_mode
             )
             news_result = news_agent.process()
             if isinstance(news_result, dict):
@@ -263,7 +268,6 @@ class SearchAgent:
             report_lines.append("\n")
 
         # Unir todos los reportes en un solo string
-        print(report_lines)
         final_report = "\n".join(map(str, report_lines))
         
         return final_report
