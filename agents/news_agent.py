@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 class NewsAnalysisAgent:
     def __init__(self, entity, search_terms, primary_language, date_range, 
-                 sector=None, country=None, advanced_mode=False, max_results=60, search_mode="scraping"):
+                 sector=None, country=None, advanced_mode=False, max_results=20, search_mode="scraping"):
         self.entity = entity
         self.sector = sector
         self.country = country
@@ -33,7 +33,7 @@ class NewsAnalysisAgent:
 
             new_articles = []
 
-            # Solo si primary_language es 'es' y se está en modo avanzado, se busca en español mediante scraping.
+            # Si primary_language es 'es' y estamos en modo avanzado, se busca en español mediante scraping.
             if self.advanced_mode and self.primary_language.lower() == "es":
                 spanish_articles = self._scrape_news(query, "es")
                 logging.info(f"Found {len(spanish_articles)} articles in Spanish for query: {query}")
@@ -43,12 +43,10 @@ class NewsAnalysisAgent:
             new_articles += self._search_english(query)
             logging.info(f"Found {len(new_articles)} articles in English for query: {query}")
 
-            for art in new_articles:
-                if count_for_entity < self.max_results:
-                    articles.append(art)
-                    count_for_entity += 1
-                else:
-                    break
+            # Agregar solo los artículos necesarios hasta alcanzar el límite
+            for art in new_articles[: self.max_results - count_for_entity]:
+                articles.append(art)
+                count_for_entity += 1
 
         return self._remove_duplicates(articles)
 
@@ -125,8 +123,8 @@ class NewsAnalysisAgent:
                     article = {
                         "title": title,
                         "pubDate": pub_date,
-                        "url": link,
                         "source": source
+                        # ,"url": link
                     }
                     articles.append(article)
             else:
@@ -140,7 +138,7 @@ class NewsAnalysisAgent:
         seen = set()
         unique_articles = []
         for article in articles:
-            if article.get('url') not in seen:
-                seen.add(article.get('url'))
+            if article.get('title') not in seen:
+                seen.add(article.get('title'))
                 unique_articles.append(article)
         return unique_articles

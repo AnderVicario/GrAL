@@ -7,6 +7,7 @@ from agents.news_agent import NewsAnalysisAgent
 from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
 from agents.technical_agent import TechnicalAnalysisAgent
+from agents.writing_agent import MarkdownAgent
 from entities.financial_entity import FinancialEntity
 from dotenv import load_dotenv
 from datetime import datetime
@@ -269,5 +270,6 @@ class SearchAgent:
 
         # Unir todos los reportes en un solo string
         final_report = "\n".join(map(str, report_lines))
+        final_report = MarkdownAgent(user_text=final_report).generate_markdown()
         
         return final_report

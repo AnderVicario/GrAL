@@ -1,5 +1,6 @@
 flask-Session
 flask
+markdown
 requests
 numpy
 fastembed

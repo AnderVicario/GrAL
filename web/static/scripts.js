@@ -13,7 +13,7 @@ document.getElementById('langToggle').addEventListener('click', function() {
     }
   });
 
-let isAdvancedMode = false;  // Estado local del modo avanzado
+let isAdvancedMode = false;
 
 // Función para activar/desactivar el modo avanzado visualmente
 document.getElementById('advancedToggle').addEventListener('click', function () {
@@ -22,10 +22,10 @@ document.getElementById('advancedToggle').addEventListener('click', function () 
 
     if (isAdvancedMode) {
         icon.classList.remove('text-[#D5D6DD]');
-        icon.classList.add('text-[#607AFB]'); // Color azul cuando está activado
+        icon.classList.add('text-[#607AFB]');
     } else {
         icon.classList.remove('text-[#607AFB]');
-        icon.classList.add('text-[#D5D6DD]'); // Color gris cuando está desactivado
+        icon.classList.add('text-[#D5D6DD]');
     }
 });
 

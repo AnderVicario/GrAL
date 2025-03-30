@@ -40,12 +40,12 @@
             
             <div class="flex-1 overflow-y-auto pr-2 mb-4 space-y-4" style="scrollbar-width: auto; scrollbar-color: #3C3F4A #1C1D22;">
               {% for message in conversation %}
-                {% if message.sender == translations.user %}
+                {% if message.sender == "0" %}
                   <!-- Mensaje del usuario -->
                   <div class="flex items-end gap-3 p-4 justify-end">
                     <div class="flex flex-1 flex-col gap-1 items-end">
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">
-                        {{ message.sender }}
+                        {{ translations.user }}
                       </p>
                       <p class="text-base font-normal leading-normal max-w-[760px] rounded-xl px-4 py-3 bg-[#607AFB] text-[#F9FAFA] break-words">
                         {{ message.message }}
@@ -63,11 +63,11 @@
                     </div>
                     <div class="flex flex-1 flex-col gap-1 items-start">
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">
-                        {{ message.sender }}
+                        {{ translations.ai }}
                       </p>
-                      <p class="text-base font-normal leading-normal max-w-[760px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
+                      <div class="text-base font-normal leading-normal max-w-[760px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
                         {{ message.message }}
-                      </p>
+                      </div>
                     </div>
                   </div>
                 {% endif %}

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_session import Session  # Importa la extensión
 from main import main
+from markdown import markdown
 import os, json, glob
 
 # Configuración básica de la aplicación
@@ -55,16 +56,16 @@ def index():
         if user_input:
             # Añadir mensaje del usuario
             session['conversation'].append({
-                "sender": translations.get("user", "User"),
+                "sender": "0",
                 "message": user_input
             })
             
             # Obtener respuesta del bot con el estado avanzado
-            bot_response = main(user_input, advanced_mode)
+            bot_response = markdown(main(user_input, advanced_mode))
             
             # Añadir respuesta del bot
             session['conversation'].append({
-                "sender": translations.get("ai", "AI"),
+                "sender": "1",
                 "message": bot_response
             })
             
