@@ -270,6 +270,7 @@ class SearchAgent:
 
         # Unir todos los reportes en un solo string
         final_report = "\n".join(map(str, report_lines))
+        print(final_report)
         final_report = MarkdownAgent(user_text=final_report).generate_markdown()
         
         return final_report

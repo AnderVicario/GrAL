@@ -148,13 +148,14 @@ class NewsAnalysisAgent:
         return unique_articles
 
     def _sentiment_analysis(self, headlines):
+        print(headlines)
         prompt = f"""
         Your task is to analyze the sentiment of a series of financial news headlines. You will receive multiple headlines and must perform a sentiment analysis for each one according to these strict rules:
 
         1. For each headline, determine if the sentiment is **positive**, **neutral**, or **negative**.
         2. If a headline mistakenly mentions another company or deviates from the financial topic for any reason, classify it as **neutral**.
         
-        ## OUTPUT REQUIREMENTS: At the end, count and output ONLY the total number of positive, neutral, and negative headlines in the following format: "Positives: X, Neutrals: Y, Negatives: Z". Do NOT include any additional text, explanations, or extra new lines in your output.
+        ## OUTPUT REQUIREMENTS: At the end, count and output ONLY the total number of positive, neutral, and negative headlines in the following format: "Positives: X, Neutrals: Y, Negatives: Z". Do NOT include any additional text, explanations, or extra new lines in your output. Ensure that the output is provided exactly once without any repetition.
 
         User Headlines:
         {headlines}
@@ -179,4 +180,15 @@ class NewsAnalysisAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        response_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        pos_match = re.search(r"Positives:\s*(\d+)", response_text)
+        neu_match = re.search(r"Neutrals:\s*(\d+)", response_text)
+        neg_match = re.search(r"Negatives:\s*(\d+)", response_text)
+
+        if pos_match and neu_match and neg_match:
+            pos_count = pos_match.group(1)
+            neu_count = neu_match.group(1)
+            neg_count = neg_match.group(1)
+            return f"Positives: {pos_count}, Neutrals: {neu_count}, Negatives: {neg_count}"
+        else:
+            return response_text
