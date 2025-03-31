@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import urllib.parse
 from gnews import GNews
 import logging
+import re
+from together import Together
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +21,8 @@ class NewsAnalysisAgent:
         self.max_results = max_results
         # search_mode: "gnews" para usar la API o "scraping" para usar scraping personalizado
         self.search_mode = search_mode.lower()
+        self.llm_client = Together()
+        self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
     def process(self):
         articles = []
@@ -48,7 +52,7 @@ class NewsAnalysisAgent:
                 articles.append(art)
                 count_for_entity += 1
 
-        return self._remove_duplicates(articles)
+        return self._sentiment_analysis(self._remove_duplicates(articles)) 
 
     def _generate_queries(self):
         queries = [self.entity]
@@ -142,3 +146,37 @@ class NewsAnalysisAgent:
                 seen.add(article.get('title'))
                 unique_articles.append(article)
         return unique_articles
+
+    def _sentiment_analysis(self, headlines):
+        prompt = f"""
+        Your task is to analyze the sentiment of a series of financial news headlines. You will receive multiple headlines and must perform a sentiment analysis for each one according to these strict rules:
+
+        1. For each headline, determine if the sentiment is **positive**, **neutral**, or **negative**.
+        2. If a headline mistakenly mentions another company or deviates from the financial topic for any reason, classify it as **neutral**.
+        
+        ## OUTPUT REQUIREMENTS: At the end, count and output ONLY the total number of positive, neutral, and negative headlines in the following format: "Positives: X, Neutrals: Y, Negatives: Z". Do NOT include any additional text, explanations, or extra new lines in your output.
+
+        User Headlines:
+        {headlines}
+
+        Sentiment Analysis:
+        """
+
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full_response = ""
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
