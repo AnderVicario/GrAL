@@ -1,10 +1,8 @@
-```html
 <p align="center">
   <a href="https://skillicons.dev">
     <img src="https://skillicons.dev/icons?i=py,docker,git" />
   </a>
 </p>
-```
 # Finantza-aholkularitza aplikazioa (GrAL)  
 
 Aplikazio honek **Flask** erabiltzen du BackEnd bezala.  
