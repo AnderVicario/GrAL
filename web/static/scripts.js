@@ -3,7 +3,7 @@ document.getElementById('langToggle').addEventListener('click', function() {
     dropdown.classList.toggle('hidden');
   });
   
-  // Cerrar el dropdown si se hace clic fuera
+  // Itxi dropdown-a kanpoan klik eginez gero
   document.addEventListener('click', function(event) {
     const dropdown = document.getElementById('langDropdown');
     const toggleButton = document.getElementById('langToggle');
@@ -15,7 +15,7 @@ document.getElementById('langToggle').addEventListener('click', function() {
 
 let isAdvancedMode = false;
 
-// Función para activar/desactivar el modo avanzado visualmente
+// Bisualki aurreratutako modua aktibatzeko/desaktibatzeko funtzioa
 document.getElementById('advancedToggle').addEventListener('click', function () {
     isAdvancedMode = !isAdvancedMode;
     const icon = document.getElementById('advancedIcon');
@@ -29,7 +29,7 @@ document.getElementById('advancedToggle').addEventListener('click', function () 
     }
 });
 
-// Interceptar el formulario y enviar el estado del modo avanzado
+// Formularioa atzematea eta egoera modu aurreratuan bidaltzea
 document.querySelector('form').addEventListener('submit', function (event) {
     event.preventDefault();
 
@@ -48,6 +48,6 @@ document.querySelector('form').addEventListener('submit', function (event) {
             if (response.ok) {
                 window.location.reload();
             }
-        }).catch(error => console.error('Error al enviar el mensaje:', error));
+        }).catch(error => console.error('Ezin izan da mezua bidali:', error));
     }
 });

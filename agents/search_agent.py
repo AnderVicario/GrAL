@@ -209,11 +209,11 @@ class SearchAgent:
         report_lines.append(f"Expedition date at: {self.expiration_date}")
         report_lines.append("\n--- Report Summary ---\n")
 
-        # Procesar cada entidad con los agentes correspondientes
+        # Entitate bakoitza prozesatu
         for entity in self.entities:
             report_lines.append(f"### Analysis for {entity.name} ({entity.ticker}) ###\n")
 
-            # Agente de noticias
+            # Albiste agentea
             news_agent = NewsAnalysisAgent(
                 entity=entity.name,
                 sector=entity.sector,
@@ -230,7 +230,7 @@ class SearchAgent:
             report_lines.append(news_result)
             report_lines.append("\n")
 
-            # # Agente macroeconómico
+            # # Agente makroekonomikoa
             # macro_agent = MacroeconomicAnalysisAgent(
             #     entity_type=entity.entity_type,
             #     sector=entity.sector,
@@ -242,7 +242,7 @@ class SearchAgent:
             # report_lines.append(macro_result)
             # report_lines.append("\n")
 
-            # # Agente de análisis fundamental
+            # # Funtzesko analisi agentea
             # fundamental_agent = FundamentalAnalysisAgent(
             #     company=entity.name,
             #     ticker=entity.ticker,
@@ -253,7 +253,7 @@ class SearchAgent:
             # report_lines.append(fundamental_result)
             # report_lines.append("\n")
 
-            # # Agente de análisis técnico
+            # # Analissi tekniko agentea
             # technical_agent = TechnicalAnalysisAgent(
             #     ticker=entity.ticker,
             #     entity_type=entity.entity_type,
@@ -264,11 +264,11 @@ class SearchAgent:
             # report_lines.append(technical_result)
             # report_lines.append("\n")
             
-            # Separador entre entidades
+            # Entitate bakoitzaren banatzailea
             report_lines.append("-" * 40)
             report_lines.append("\n")
 
-        # Unir todos los reportes en un solo string
+        # Txosten guztiak batu
         final_report = "\n".join(map(str, report_lines))
         print(final_report)
         final_report = MarkdownAgent(user_text=final_report).generate_markdown()

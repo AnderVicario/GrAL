@@ -1,21 +1,21 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from flask_session import Session  # Importa la extensión
+from flask_session import Session
 from main import main
 from markdown import markdown
 import os, json, glob
 
-# Configuración básica de la aplicación
+# Oinarrizko flask konfigurazioa
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'static'))
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
 
-# Configuración para usar sesiones en el servidor (almacenamiento en filesystem)
+# Saioak erabiltzeko (memoria filesystem-n)
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = os.path.join(os.path.dirname(__file__), 'flask_session')
 app.config['SESSION_PERMANENT'] = False
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SECRET_KEY'] = 'clave_secreta'
-Session(app)  # Inicializa la extensión
+Session(app)  # Hasierazi saioak
 
 advanced_mode = False
 
@@ -51,25 +51,25 @@ def index():
     
     if request.method == "POST":
         user_input = request.form.get("user_input", "").strip()
-        advanced_mode = request.form.get("advanced_mode") == "true"  # Convertir a booleano
+        advanced_mode = request.form.get("advanced_mode") == "true"
 
         if user_input:
-            # Añadir mensaje del usuario
+            # Erabiltzailearen sarrera gorde
             session['conversation'].append({
                 "sender": "0",
                 "message": user_input
             })
             
-            # Obtener respuesta del bot con el estado avanzado
+            # Botaren erantzuna lortu
             bot_response = markdown(main(user_input, advanced_mode))
             
-            # Añadir respuesta del bot
+            # Erantzuna gorde
             session['conversation'].append({
                 "sender": "1",
                 "message": bot_response
             })
             
-            session.modified = True  # Guardar cambios en la sesión
+            session.modified = True  # Saioaren aldaketak gorde
             
         return redirect(url_for("index"))
     
