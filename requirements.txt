@@ -16,3 +16,4 @@ colorlog
 bs4
 lxml
 pymongo[srv]
+yfinance

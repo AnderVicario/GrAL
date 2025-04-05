@@ -50,7 +50,7 @@ class SearchAgent:
 
         For each financial entity, return a JSON object with the following keys:
         - "name": the full name of the entity
-        - "ticker": the ticker or symbol (if available, else null)
+        - "ticker": the ticker or symbol (if available prefer the most popular or representative ticker for each entity, prioritizing the primary exchange of its home country for companies, and the standard symbol for cryptocurrencies, else null)
         - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
         - "sector": if applicable (can be null)
         - "country": if applicable (can be null)
@@ -72,6 +72,15 @@ class SearchAgent:
             "country": "USA",
             "primary_language": "en",
             "search_terms": "stock, investment, technology, innovation"
+        }},
+        {{
+            "name": "Iberdrola, S.A.",
+            "ticker": "IBE.MC",
+            "entity_type": "company",
+            "sector": "Energy",
+            "country": "Spain",
+            "primary_language": "es",
+            "search_terms": "stock, investment, energy, renewable energy"
         }},
         {{
             "name": "Bitcoin",
