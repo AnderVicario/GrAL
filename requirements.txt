@@ -15,3 +15,4 @@ gradio
 colorlog
 bs4
 lxml
+pymongo[srv]
