@@ -214,9 +214,10 @@ class SearchAgent:
         self._process_entities()
         
         report_lines = []
-        report_lines.append(f"Report generated at: {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}")
-        report_lines.append(f"Expedition date at: {self.expiration_date}")
-        report_lines.append("\n--- Report Summary ---\n")
+        report_lines.append(f"Report generated at: {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        report_lines.append(f"Expedition date at: {self.expiration_date}\n")
+        report_lines.append("_" * 40)
+        report_lines.append("\n")
 
         # Entitate bakoitza prozesatu
         for entity in self.entities:
@@ -235,8 +236,11 @@ class SearchAgent:
             news_result = news_agent.process()
             if isinstance(news_result, dict):
                 news_result = json.dumps(news_result, indent=2)
-            report_lines.append("**News Analysis:**")
+            news_result = MarkdownAgent(user_text=news_result).generate_markdown()
+            report_lines.append("# News Analysis:")
             report_lines.append(news_result)
+            report_lines.append("\n")
+            report_lines.append("-" * 40)
             report_lines.append("\n")
 
             # # Agente makroekonomikoa
@@ -251,16 +255,22 @@ class SearchAgent:
             # report_lines.append(macro_result)
             # report_lines.append("\n")
 
-            # # Funtzesko analisi agentea
-            # fundamental_agent = FundamentalAnalysisAgent(
-            #     company=entity.name,
-            #     ticker=entity.ticker,
-            #     sector=entity.sector
-            # )
-            # fundamental_result = fundamental_agent.process()
-            # report_lines.append("**Fundamental Analysis:**")
-            # report_lines.append(fundamental_result)
-            # report_lines.append("\n")
+            # Funtzesko analisi agentea
+            fundamental_agent = FundamentalAnalysisAgent(
+                company=entity.name,
+                ticker=entity.ticker,
+                sector=entity.sector,
+                date_range=self.date_range,
+            )
+            fundamental_result = fundamental_agent.process()
+            if isinstance(news_result, dict):
+                fundamental_result = json.dumps(fundamental_result, indent=2)
+            fundamental_result = MarkdownAgent(user_text=fundamental_result).generate_markdown()
+            report_lines.append("# Fundamental Analysis:")
+            report_lines.append(fundamental_result)
+            report_lines.append("\n")
+            report_lines.append("-" * 40)
+            report_lines.append("\n")
 
             # # Analissi tekniko agentea
             # technical_agent = TechnicalAnalysisAgent(
@@ -274,12 +284,11 @@ class SearchAgent:
             # report_lines.append("\n")
             
             # Entitate bakoitzaren banatzailea
-            report_lines.append("-" * 40)
+            report_lines.append("_" * 40)
             report_lines.append("\n")
 
         # Txosten guztiak batu
         final_report = "\n".join(map(str, report_lines))
-        print(final_report)
-        final_report = MarkdownAgent(user_text=final_report).generate_markdown()
+        # final_report = MarkdownAgent(user_text=final_report).generate_markdown()
         
         return final_report

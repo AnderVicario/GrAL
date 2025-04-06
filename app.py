@@ -61,7 +61,7 @@ def index():
             })
             
             # Botaren erantzuna lortu
-            bot_response = markdown(main(user_input, advanced_mode))
+            bot_response = markdown(main(user_input, advanced_mode), extensions=['nl2br'])
             
             # Erantzuna gorde
             session['conversation'].append({
