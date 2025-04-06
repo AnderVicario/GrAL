@@ -17,29 +17,41 @@ class FundamentalAnalysisAgent:
         self.cash_flow = None
         
     def _parse_date_range(self):
-        """Parse date_range string to determine frequency and number of reports."""
+        """
+        Parsea self.date_range, que debe estar en horas ('h') o días ('d'),
+        y devuelve:
+        - ≤ 30 días           -> ("quarterly", 2)
+        - 31 a 120 días       -> ("quarterly", 3)
+        - 121 a 364 días      -> ("quarterly", 4)
+        - 365 a 730 días      -> ("yearly", 3)
+        - > 730 días          -> ("yearly", 5)
+        Si no se proporciona date_range o se produce un error, se retorna el valor por defecto ("yearly", 3)
+        """
         if not self.date_range:
-            return "yearly", 3  # Default values
-        
-        # Extract number and unit (h for hours, d for days)
+            return "yearly", 3
+
         try:
-            if 'h' in self.date_range:
-                value = int(self.date_range.replace('h', ''))
-                # For small time frames, use quarterly reports
-                return "quarterly", min(12, max(1, value // 3))
-            elif 'd' in self.date_range:
-                value = int(self.date_range.replace('d', ''))
-                # For longer time frames, determine if yearly or quarterly is more appropriate
-                if value >= 365:
-                    return "yearly", min(10, max(1, value // 365))
-                else:
-                    return "quarterly", min(12, max(1, value // 90))
+            unit = self.date_range[-1].lower()  # Último carácter: 'h' o 'd'
+            value = float(self.date_range[:-1])
+            
+            # Convertir a días si es necesario
+            days = value / 24 if unit == 'h' else value if unit == 'd' else None
+            if days is None:
+                return "yearly", 3
+
+            if days <= 30:
+                return "quarterly", 2
+            elif days <= 120:
+                return "quarterly", 3
+            elif days < 365:
+                return "quarterly", 4
+            elif days < 730:
+                return "yearly", 3
             else:
-                # Default to yearly if no unit is specified
-                value = int(self.date_range)
-                return "yearly", min(10, max(1, value))
+                return "yearly", 5
         except (ValueError, TypeError):
-            return "yearly", 3  # Default values if parsing fails
+            return "yearly", 3
+
     
     def fetch_company_data(self):
         """Fetch all relevant company data from yfinance."""
@@ -179,45 +191,3 @@ class FundamentalAnalysisAgent:
         }
         
         return analysis_report
-
-
-# Example usage:
-def main():
-    # Create an instance with appropriate parameters
-    agent = FundamentalAnalysisAgent(
-        company="Iberdrola", 
-        ticker="IBE.MC", 
-        sector="Utilities", 
-        date_range="300d"  # Will use yearly analysis with appropriate n_reports
-    )
-    
-    # Process the data
-    analysis = agent.process()
-    
-    # Print results in a readable format
-    print(f"\n=== {analysis['company_info'].get('Name', 'Company')} ({analysis['company_info'].get('Ticker', 'N/A')}) Analysis ===")
-    print(f"Sector: {analysis['company_info'].get('Sector', 'N/A')}")
-    print(f"Analysis: {analysis['analysis_parameters']['frequency']} data for {analysis['analysis_parameters']['date_range']}")
-    
-    print("\n=== Company Profile ===")
-    for key, value in analysis['company_info'].items():
-        print(f"{key}: {value}")
-        
-    print("\n=== Key Financial Metrics ===")
-    for key, value in analysis['additional_metrics'].items():
-        if isinstance(value, float):
-            print(f"{key}: {value:.2%}")
-        else:
-            print(f"{key}: {value}")
-    
-    print("\n=== Income Statement Highlights ===")
-    if analysis['financial_statements']['income_statement']:
-        income_df = pd.DataFrame(analysis['financial_statements']['income_statement'])
-        print(income_df.loc[['TotalRevenue', 'GrossProfit', 'OperatingIncome', 'NetIncome']])
-    else:
-        print("No income statement data available")
-    
-    # Similar output for balance sheet and cash flow could be added
-    
-if __name__ == "__main__":
-    main()
