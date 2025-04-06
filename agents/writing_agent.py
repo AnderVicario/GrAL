@@ -26,45 +26,42 @@ class MarkdownAgent:
         logger.addHandler(handler)
 
         self.llm_client = Together()
-        self.model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+        self.model_name = "meta-llama/Llama-Vision-Free"
         self.user_text = user_text
         self.current_date = datetime.now()
 
     def generate_markdown(self):
         prompt = f"""
-        You are an advanced writing assistant specialized in formatting text into Markdown. Your task is to take the user's plain text and apply Markdown formatting intelligently and cleanly.
+        You are a writing assistant that formats plain text into clean Markdown.
 
         Rules:
-        - Never use `#` headers.
-        - Use `##` only if the user clearly provided a title or section header (for example: isolated line, possibly in all caps, or obviously a section separator).
-        - Do not create or invent titles or summaries from the content.
-        - Convert important keywords into **bold** if they seem emphasized.
-        - Use *italics* for words that indicate emphasis or special terms.
-        - Convert lists into proper Markdown lists using `-` if items are listed.
-        - Maintain the user's original structure as much as possible.
-        - Ensure readability and clean structure without over-formatting.
+        - Use only `##` headers if the user clearly provides a title or section header. DO NOT use `#` headers.
+        - Do not invent titles, summaries, conclusions, or reasoning, ONLY convert to Markdown.
+        - Emphasize important keywords with **bold** and use *italics* for special terms.
+        - Convert lists into Markdown lists with `-`, do not use `|`.
+        - Preserve the original structure and relevant information; remove only null or invalid details.
+        - Do not explain your formatting decisions; just output the formatted Markdown.
 
         Assume today's date is: {self.current_date}.
 
-        Example:
+        This is an example:
+            Input:
+            MY NOTES
+            This is a very important idea.
 
-        User Input:
-        MY NOTES
-        This is a very important idea.
+            fruits I like:
+            apple
+            banana
+            cherry
 
-        fruits I like:
-        apple
-        banana
-        cherry
+            Expected Markdown Output:
+            ## MY NOTES
+            This is a **very important** idea.
 
-        Expected Markdown Output:
-        ## MY NOTES
-        This is a **very important** idea.
-
-        ### fruits I like:
-        - apple
-        - banana
-        - cherry
+            ### fruits I like:
+            - apple
+            - banana
+            - cherry
 
         User Input:
         {self.user_text}

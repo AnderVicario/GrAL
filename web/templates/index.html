@@ -16,7 +16,7 @@
   <body>
     <div class="relative flex size-full min-h-screen flex-col bg-[#1C1D22] dark group/design-root overflow-x-hidden" style='font-family: Manrope, "Noto Sans", sans-serif;'>
       <div class="layout-container flex h-screen flex-col items-center">
-        <div class="w-5/6 flex flex-1 justify-center py-5 overflow-hidden">
+        <div class="w-4/6 flex flex-1 justify-center py-5 overflow-hidden">
           <div class="layout-content-container flex flex-col w-full py-5 flex-1">
             <div class="flex flex-wrap justify-between gap-3 p-4 mb-4 border-b border-gray-300 border-opacity-30">
               <div class="flex min-w-72 flex-col gap-3">
@@ -65,7 +65,7 @@
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">
                         {{ translations.ai }}
                       </p>
-                      <div class="message-content text-base font-normal leading-normal max-w-[1000px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
+                      <div class="message-content text-base font-normal leading-normal max-w-[900px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
                         {{ message.message | safe }}
                       </div>
                     </div>
@@ -100,8 +100,9 @@
                             </div>
                           </button>
                         </div>
-                        <button type="submit" class="min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:block">
-                          <span class="truncate">{{ translations.send }}</span>
+                        <button type="submit" id="submitButton" class="submit-transition min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:flex gap-2">
+                          <span id="submitText" class="truncate">{{ translations.send }}</span>
+                          <div id="loadingSpinner" class="loading-spinner hidden"></div>
                         </button>
                       </div>
                     </div>

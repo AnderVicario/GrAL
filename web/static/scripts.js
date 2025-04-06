@@ -36,8 +36,17 @@ document.querySelector('form').addEventListener('submit', function (event) {
     const form = event.target;
     const inputField = form.querySelector('input[name="user_input"]');
     const userInput = inputField.value.trim();
+    const submitButton = document.getElementById('submitButton');
+    const submitText = document.getElementById('submitText');
+    const loadingSpinner = document.getElementById('loadingSpinner');
 
     if (userInput) {
+        // Mostrar spinner y deshabilitar botón
+        submitText.classList.add('hidden');
+        loadingSpinner.classList.remove('hidden');
+        submitButton.disabled = true;
+        submitButton.classList.add('opacity-75');
+
         const formData = new FormData(form);
         formData.append('advanced_mode', isAdvancedMode);
 
@@ -46,8 +55,24 @@ document.querySelector('form').addEventListener('submit', function (event) {
             body: formData
         }).then(response => {
             if (response.ok) {
+                // Limpiar el input
+                inputField.value = '';
+                
+                // Restaurar botón (aunque la página se recargará)
+                submitText.classList.remove('hidden');
+                loadingSpinner.classList.add('hidden');
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-75');
+                
                 window.location.reload();
             }
-        }).catch(error => console.error('Ezin izan da mezua bidali:', error));
+        }).catch(error => {
+            console.error('Ezin izan da mezua bidali:', error);
+            // Restaurar botón en caso de error
+            submitText.classList.remove('hidden');
+            loadingSpinner.classList.add('hidden');
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-75');
+        });
     }
 });
