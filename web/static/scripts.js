@@ -41,7 +41,7 @@ document.querySelector('form').addEventListener('submit', function (event) {
     const loadingSpinner = document.getElementById('loadingSpinner');
 
     if (userInput) {
-        // Mostrar spinner y deshabilitar botón
+        // Spinner-a eta botoia kargatzen erakutsi
         submitText.classList.add('hidden');
         loadingSpinner.classList.remove('hidden');
         submitButton.disabled = true;
@@ -55,10 +55,10 @@ document.querySelector('form').addEventListener('submit', function (event) {
             body: formData
         }).then(response => {
             if (response.ok) {
-                // Limpiar el input
+                // Input-a garbitu
                 inputField.value = '';
                 
-                // Restaurar botón (aunque la página se recargará)
+                // Botoia eta spinner-a berrezarri
                 submitText.classList.remove('hidden');
                 loadingSpinner.classList.add('hidden');
                 submitButton.disabled = false;
@@ -68,7 +68,7 @@ document.querySelector('form').addEventListener('submit', function (event) {
             }
         }).catch(error => {
             console.error('Ezin izan da mezua bidali:', error);
-            // Restaurar botón en caso de error
+            // Errorea kudeatu eta spinner-a ezkutatu
             submitText.classList.remove('hidden');
             loadingSpinner.classList.add('hidden');
             submitButton.disabled = false;
