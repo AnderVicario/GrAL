@@ -41,7 +41,7 @@
             <div class="flex-1 overflow-y-auto pr-2 mb-4 space-y-4" style="scrollbar-width: auto; scrollbar-color: #3C3F4A #1C1D22;">
               {% for message in conversation %}
                 {% if message.sender == "0" %}
-                  <!-- Mensaje del usuario -->
+                  <!-- Erabiltzailearen mezuak -->
                   <div class="flex items-end gap-3 p-4 justify-end">
                     <div class="flex flex-1 flex-col gap-1 items-end">
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px] text-right">
@@ -56,7 +56,7 @@
                     </div>
                   </div>
                 {% else %}
-                  <!-- Mensaje del AI -->
+                  <!-- AAren mezuak -->
                   <div class="flex items-end gap-3 p-4">
                     <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
                          style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'>

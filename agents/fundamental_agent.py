@@ -8,9 +8,8 @@ class FundamentalAnalysisAgent:
         self.ticker = ticker
         self.sector = sector
         self.date_range = date_range
-        # Parse date_range to determine frequency and number of reports
         self.frequency, self.n_reports = self._parse_date_range()
-        # Initialize data containers
+
         self.profile_data = {}
         self.income_statement = None
         self.balance_sheet = None
@@ -18,23 +17,23 @@ class FundamentalAnalysisAgent:
         
     def _parse_date_range(self):
         """
-        Parsea self.date_range, que debe estar en horas ('h') o días ('d'),
-        y devuelve:
-        - ≤ 30 días           -> ("quarterly", 2)
-        - 31 a 120 días       -> ("quarterly", 3)
-        - 121 a 364 días      -> ("quarterly", 4)
-        - 365 a 730 días      -> ("yearly", 3)
-        - > 730 días          -> ("yearly", 5)
-        Si no se proporciona date_range o se produce un error, se retorna el valor por defecto ("yearly", 3)
+        Parseatu self.date_range, ordutan ('h') edo egunetan ('d') egon behar duena,
+        eta itzuli egiten du:
+        - ≤ 30 egun -> (quarterly), 2
+        - 31-120 egun -> ("quarterly", 3)
+        - 121-364 egun -> ("quarterly", 4)
+        - 365 eta 730 egun -> ("yearly", 3)
+        - > 730 egun -> ("yearly", 5)
+        Date_range null bada edo erroreren bat gertatzen bada, balio lehenetsia itzuliko da ("yearly", 3)
         """
         if not self.date_range:
             return "yearly", 3
 
         try:
-            unit = self.date_range[-1].lower()  # Último carácter: 'h' o 'd'
+            unit = self.date_range[-1].lower()  # Azken karakterea: 'h' o 'd'
             value = float(self.date_range[:-1])
             
-            # Convertir a días si es necesario
+            # Bihurtu egunetara, behar izanez gero
             days = value / 24 if unit == 'h' else value if unit == 'd' else None
             if days is None:
                 return "yearly", 3
@@ -54,12 +53,11 @@ class FundamentalAnalysisAgent:
 
     
     def fetch_company_data(self):
-        """Fetch all relevant company data from yfinance."""
         try:
             company = yf.Ticker(self.ticker)
             info = company.info
             
-            # Fetch company profile data
+            # Eskuratu enpresaren profilaren datuak
             self.profile_data = {
                 'Name': info.get('longName', self.company),
                 'Ticker': self.ticker,
@@ -86,13 +84,13 @@ class FundamentalAnalysisAgent:
                 '52-Week Low': info.get('fiftyTwoWeekLow')
             }
             
-            # Filter out None/NaN values
+            # Iragazi None/NaN balioak
             self.profile_data = {
                 k: v for k, v in self.profile_data.items()
                 if v is not None and not (isinstance(v, float) and math.isnan(v))
             }
             
-            # Fetch financial statements
+            # Eskuratu finantza-egoerak
             self.income_statement = company.get_income_stmt(freq=self.frequency)
             self.balance_sheet = company.get_balance_sheet(freq=self.frequency)
             self.cash_flow = company.get_cash_flow(freq=self.frequency)
@@ -103,16 +101,15 @@ class FundamentalAnalysisAgent:
             return False
     
     def _format_financial_data(self, df, n_reports):
-        """Format financial dataframe for reporting."""
         if df is None or df.empty:
             return pd.DataFrame()
         
-        # Get the last n reports
+        # Eskuratu azken n txostenak
         selected = df.iloc[:, :n_reports].dropna(how='all', axis=1)
         if selected.empty:
             return pd.DataFrame()
         
-        # Format numeric values
+        # Formateatu zenbakizko balioak
         for col in selected.columns:
             selected[col] = selected[col].apply(
                 lambda x: f"{x/1e6:.2f}M" if isinstance(x, (int, float)) else x
@@ -121,10 +118,9 @@ class FundamentalAnalysisAgent:
         return selected
     
     def calculate_key_metrics(self):
-        """Calculate additional financial metrics based on available data."""
         metrics = {}
         
-        # Calculate metrics only if we have the necessary data
+        # Beharrezko datuak baditugu bakarrik kalkulatu metrikak
         if self.income_statement is not None and not self.income_statement.empty:
             # Get the most recent period
             recent = self.income_statement.iloc[:, 0]
@@ -135,7 +131,7 @@ class FundamentalAnalysisAgent:
                 if isinstance(net_income, (int, float)) and isinstance(revenue, (int, float)):
                     metrics['Net Profit Margin'] = net_income / revenue if revenue != 0 else None
             
-            # Year-over-year growth if we have at least 2 periods
+            # Urtetik urterako hazkundea, gutxienez 2 aldi baditugu
             if self.income_statement.shape[1] >= 2:
                 prev_revenue = self.income_statement.loc['TotalRevenue', self.income_statement.columns[1]]
                 curr_revenue = self.income_statement.loc['TotalRevenue', self.income_statement.columns[0]]
@@ -153,7 +149,7 @@ class FundamentalAnalysisAgent:
                 if isinstance(assets, (int, float)) and isinstance(liabilities, (int, float)):
                     metrics['Debt Ratio'] = liabilities / assets if assets != 0 else None
         
-        # Filter out None/NaN values
+        # Iragazi None/NaN balioak
         metrics = {
             k: v for k, v in metrics.items()
             if v is not None and not (isinstance(v, float) and math.isnan(v))
@@ -162,19 +158,18 @@ class FundamentalAnalysisAgent:
         return metrics
     
     def process(self):
-        """Process all company data and return a comprehensive analysis report."""
         if not self.fetch_company_data():
             return {"status": "error", "message": f"Failed to fetch data for {self.ticker}"}
         
-        # Format financial statements for output
+        # Formateatu irteerako finantza-egoerak
         income_stmt = self._format_financial_data(self.income_statement, self.n_reports)
         balance_sheet = self._format_financial_data(self.balance_sheet, self.n_reports)
         cash_flow = self._format_financial_data(self.cash_flow, self.n_reports)
         
-        # Calculate additional metrics
+        # Metrika gehigarriak kalkulatu
         additional_metrics = self.calculate_key_metrics()
         
-        # Prepare the full analysis report
+        # Analisi-txosten osoa sortu
         analysis_report = {
             "company_info": self.profile_data,
             "analysis_parameters": {

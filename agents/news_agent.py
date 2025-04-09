@@ -19,7 +19,7 @@ class NewsAnalysisAgent:
         self.date_range = date_range
         self.advanced_mode = advanced_mode
         self.max_results = max_results
-        # search_mode: "gnews" para usar la API o "scraping" para usar scraping personalizado
+        # search_mode: "gnews" APIa erabiltzeko edo "scraping" scraping bidez bilatzeko
         self.search_mode = search_mode.lower()
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
@@ -37,17 +37,17 @@ class NewsAnalysisAgent:
 
             new_articles = []
 
-            # Si primary_language es 'es' y estamos en modo avanzado, se busca en español mediante scraping.
+            # Primary_language 'es' bada eta modu aurreratuan bagaude, espainieraz bilatzen da scraping bidez.
             if self.advanced_mode and self.primary_language.lower() == "es":
                 spanish_articles = self._scrape_news(query, "es")
                 logging.info(f"Found {len(spanish_articles)} articles in Spanish for query: {query}")
                 new_articles += spanish_articles
 
-            # Búsqueda en inglés siempre
+            # Bilaketa inglesez beti
             new_articles += self._search_english(query)
             logging.info(f"Found {len(new_articles)} articles in English for query: {query}")
 
-            # Agregar solo los artículos necesarios hasta alcanzar el límite
+            # Behar diren artikuluak bakarrik gehitu, mugara iritsi arte
             for art in new_articles[: self.max_results - count_for_entity]:
                 articles.append(art)
                 count_for_entity += 1
