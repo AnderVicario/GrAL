@@ -132,7 +132,7 @@ class QAEngine:
         return answer
 
 async def main():
-    create_search_index()  # Ejecutar una sola vez
+    # create_search_index()  # Ejecutar una sola vez
 
     processor = DocumentProcessor()
     parsed_text = await processor.parse_pdf(PDF_FILE)
@@ -145,7 +145,6 @@ async def main():
     # Consulta
     query = "What has been the recent revenues of gaming?"
     results = vector_db.search(query)
-    print("Search results:", results)
 
     # Rerankeo
     passages = [

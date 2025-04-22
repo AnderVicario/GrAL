@@ -4,8 +4,6 @@
     "lang": "Language",
     "ai": "AI",
     "user": "You",
-    "message1": "Hello! How can I help you today?",
-    "message2": "What can you do?",
-    "message3": "I can answer questions, help with information, and assist with various topics. What would you like to know?",
+    "selected_files": "Selected files: ",
     "send": "Send"
 }

@@ -74,39 +74,69 @@
               {% endfor %}
             </div>
             
+            <div id="fileList" class="text-[#D5D6DD] text-sm mt-2 hidden">
+              <div class="font-medium mb-1">{{ translations.selected_files }}</div>
+            </div>
+
             <div class="sticky bottom-0 left-0 right-0 flex items-center px-4 py-3 gap-3 @container bg-[#1C1D22]">
-              <form method="POST" action="{{ url_for('index') }}" class="w-full flex gap-3">
+              <form method="POST" action="{{ url_for('index') }}" enctype="multipart/form-data" class="w-full flex gap-3">
                 <label class="flex flex-col min-w-40 h-12 flex-1">
-                  <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
-                    <input
-                      name="user_input"
-                      placeholder="Chat with me..."
-                      class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F9FAFA] focus:outline-0 focus:ring-0 border-none bg-[#3C3F4A] focus:border-none h-full placeholder:text-[#D5D6DD] px-4 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
-                      value=""
-                    />
-                    <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
-                      <div class="flex items-center gap-2 justify-end">
-                        <div class="flex items-center gap-1">
-                          <button class="flex items-center justify-center p-1.5" type="button">
-                            <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
-                              <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.25"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-files"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M15 3v4a1 1 0 0 0 1 1h4" /><path d="M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2z" /><path d="M16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2" /></svg>                            
+                    <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
+                        <input
+                            name="user_input"
+                            placeholder="Chat with me..."
+                            class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-xl text-[#F9FAFA] focus:outline-0 focus:ring-0 border-none bg-[#3C3F4A] focus:border-none h-full placeholder:text-[#D5D6DD] px-4 rounded-r-none border-r-0 pr-2 text-base font-normal leading-normal"
+                            value=""
+                        />
+                        <div class="flex border-none bg-[#3C3F4A] items-center justify-center pr-4 rounded-r-xl border-l-0 !pr-2">
+                            <div class="flex items-center gap-2 justify-end">
+                                <div class="flex items-center gap-1">
+                                    <label class="flex items-center justify-center p-1.5 cursor-pointer">
+                                        <input 
+                                          type="file" 
+                                          name="file" 
+                                          id="fileInput" 
+                                          class="hidden" 
+                                          accept=".pdf"
+                                          multiple
+                                          onchange="handleFileSelect(event)"
+                                        >
+                                        <div class="text-[#D5D6DD]" data-icon="Paperclip" data-size="20px" data-weight="regular">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M15 3v4a1 1 0 0 0 1 1h4"/>
+                                                <path d="M18 17h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h4l5 5v7a2 2 0 0 1 -2 2z"/>
+                                                <path d="M16 17v2a2 2 0 0 1 -2 2h-7a2 2 0 0 1 -2 -2v-10a2 2 0 0 1 2 -2h2"/>
+                                            </svg>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button class="flex items-center justify-center p-1.5" type="button" id="advancedToggle">
+                                        <div class="text-[#D5D6DD]" id="advancedIcon" data-icon="Advanced" data-size="20px" data-weight="regular">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+                                                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                                                <path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z"/>
+                                                <path d="M8 10v-2h2m6 6v2h-2m-4 0h-2v-2m8 -4v-2h-2"/>
+                                                <path d="M3 10h2"/>
+                                                <path d="M3 14h2"/>
+                                                <path d="M10 3v2"/>
+                                                <path d="M14 3v2"/>
+                                                <path d="M21 10h-2"/>
+                                                <path d="M21 14h-2"/>
+                                                <path d="M14 21v-2"/>
+                                                <path d="M10 21v-2"/>
+                                            </svg>
+                                        </div>
+                                    </button>
+                                </div>
+                                <button type="submit" id="submitButton" class="submit-transition min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:flex gap-2">
+                                    <span id="submitText" class="truncate">{{ translations.send }}</span>
+                                    <div id="loadingSpinner" class="loading-spinner hidden"></div>
+                                </button>
                             </div>
-                          </button>
                         </div>
-                        <div class="flex items-center gap-1">
-                          <button class="flex items-center justify-center p-1.5" type="button" id="advancedToggle">
-                            <div class="text-[#D5D6DD]" id="advancedIcon" data-icon="Advanced" data-size="20px" data-weight="regular">
-                              <svg xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="1.25"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cpu-2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 5m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v12a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z" /><path d="M8 10v-2h2m6 6v2h-2m-4 0h-2v-2m8 -4v-2h-2" /><path d="M3 10h2" /><path d="M3 14h2" /><path d="M10 3v2" /><path d="M14 3v2" /><path d="M21 10h-2" /><path d="M21 14h-2" /><path d="M14 21v-2" /><path d="M10 21v-2" /></svg>
-                            </div>
-                          </button>
-                        </div>
-                        <button type="submit" id="submitButton" class="submit-transition min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-8 px-4 bg-[#607AFB] text-[#F9FAFA] text-sm font-medium leading-normal hidden @[480px]:flex gap-2">
-                          <span id="submitText" class="truncate">{{ translations.send }}</span>
-                          <div id="loadingSpinner" class="loading-spinner hidden"></div>
-                        </button>
-                      </div>
                     </div>
-                  </div>
                 </label>
               </form>
             </div>

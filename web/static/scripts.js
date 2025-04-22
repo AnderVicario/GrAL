@@ -67,8 +67,7 @@ document.querySelector('form').addEventListener('submit', function (event) {
                 window.location.reload();
             }
         }).catch(error => {
-            console.error('Ezin izan da mezua bidali:', error);
-            // Errorea kudeatu eta spinner-a ezkutatu
+            console.error(error);
             submitText.classList.remove('hidden');
             loadingSpinner.classList.add('hidden');
             submitButton.disabled = false;
@@ -76,3 +75,29 @@ document.querySelector('form').addEventListener('submit', function (event) {
         });
     }
 });
+
+function handleFileSelect(event) {
+    const files = event.target.files;
+    const fileListDiv = document.getElementById('fileList');
+    const translations = window.translations || {};
+
+    if (files.length > 0) {
+        for (let i = 0; i < files.length; i++) {
+            fileListDiv.innerHTML += `
+                <div class="flex items-center gap-2 mb-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <path d="M14 2v6h6"/>
+                        <path d="M12 18v-6"/>
+                        <path d="M9 15h6"/>
+                    </svg>
+                    <span class="truncate">${files[i].name}</span>
+                </div>
+            `;
+        }
+        
+        fileListDiv.classList.remove('hidden');
+    } else {
+        fileListDiv.classList.add('hidden');
+    }
+}
