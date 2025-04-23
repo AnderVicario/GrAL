@@ -42,6 +42,15 @@ class FinancialEntity:
             coll = _db[collection_name]
             logging.info(f"Collection '{collection_name}' already exists.")
 
+        self._collection = coll
+
+    def __str__(self):
+        return f"{self.entity_type.title()}: {self.name} ({self.ticker})"
+
+
+    def create_vector_index(self):
+        """Bektore-indizea bilduman sortu"""
+
         index = SearchIndexModel(
             definition={
                 "fields": [{
@@ -56,19 +65,14 @@ class FinancialEntity:
             type="vectorSearch"
         )
         try:
-            coll.create_search_index(index)
-            logging.info(f"Vector index 'vector_index' created or updated in '{collection_name}'.")
+            self._collection.create_search_index(index)
+            logging.info(f"Vector index 'vector_index' created or updated in '{self._collection.name}'.")
         except Exception as e:
             logging.error(f"Failed to create/update vector index: {e}")
 
-        self._collection = coll
-
-    def __str__(self):
-        return f"{self.entity_type.title()}: {self.name} ({self.ticker})"
-
     def drop_vector_index(self):
         """Bektore-indizea bildumatik ezabatu"""
-        
+
         try:
             self._collection.drop_search_index("vector_index")
             logging.info(f"Vector index 'vector_index' dropped from collection '{self._collection.name}'.")
@@ -98,6 +102,9 @@ class FinancialEntity:
     def semantic_search(self, query, k=10, num_candidates=100):
         """Bilaketa semantikoa erabiltzailearen galderaren arabera."""
 
+        if 'vector_index' not in self._collection.list_search_indexes():
+            logging.warning("Vector index does not exist.")
+
         query_embedding = list(self.embedder.embed([query]))[0].tolist()
         
         pipeline = [
@@ -119,29 +126,3 @@ class FinancialEntity:
         except Exception as e:
             logging.error(f"Error during semantic search: {e}")
             return []
-
-
-# if __name__ == "__main__":
-#     # Example usage
-#     entity = FinancialEntity(
-#         name="Apple Inc.",
-#         ticker="AAPL",
-#         entity_type="company",
-#         sector="Tech",
-#         country="US"
-#     )
-    
-#     # sample_records = [
-#     #     {'text': 'Apple reports record quarterly revenue', 'metadata': {'source': 'news'}},
-#     #     {'text': 'Apple unveils new iPhone model', 'metadata': {'source': 'press'}}
-#     # ]
-#     # entity.add_documents(sample_records)
-
-#     query = 'new iPhone price'
-#     results = entity.semantic_search(query, k=2)
-#     print('Semantic results:')
-#     for idx, doc in enumerate(results, 1):
-#         print(f"{idx}. {doc['text']} | metadata: {doc.get('metadata')}")
-    
-#     # Optional: Cleanup index
-#     entity.drop_vector_index()

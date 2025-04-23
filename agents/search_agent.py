@@ -213,17 +213,46 @@ class SearchAgent:
     def process_all(self, advanced_mode=False):
         self._process_entities()
         
-        report_lines = []
-        report_lines.append(f"Report generated at: {self.current_date.strftime('%Y-%m-%d %H:%M:%S')}\n")
-        report_lines.append(f"Expedition date at: {self.expiration_date}\n")
-        report_lines.append("_" * 40)
-        report_lines.append("\n")
+        # Helper para dividir texto en chunks
+        def chunk_text(text, max_chars=1500):
+            chunks = []
+            current_chunk = []
+            current_length = 0
+            
+            # Dividir por párrafos primero
+            paragraphs = text.split('\n\n')
+            for para in paragraphs:
+                para = para.strip()
+                if not para:
+                    continue
+                if current_length + len(para) + 2 <= max_chars:  # +2 por los saltos de línea
+                    current_chunk.append(para)
+                    current_length += len(para) + 2
+                else:
+                    if current_chunk:
+                        chunks.append('\n\n'.join(current_chunk))
+                        current_chunk = [para]
+                        current_length = len(para)
+                    else:
+                        # Si un párrafo individual excede el máximo
+                        chunks.append(para)
+                        current_chunk = []
+                        current_length = 0
+            if current_chunk:
+                chunks.append('\n\n'.join(current_chunk))
+            return chunks
 
-        # Entitate bakoitza prozesatu
+        # Procesar cada entidad
         for entity in self.entities:
-            report_lines.append(f"### Analysis for {entity.name} ({entity.ticker}) ###\n")
+            base_metadata = {
+                "entity": entity.name,
+                "ticker": entity.ticker,
+                "entity_type": entity.entity_type,
+                "report_date": self.current_date.isoformat(),
+                "expiration_date": self.expiration_date if self.expiration_date else None
+            }
 
-            # Albiste agentea
+            # 1. Análisis de Noticias
             news_agent = NewsAnalysisAgent(
                 entity=entity.name,
                 sector=entity.sector,
@@ -234,28 +263,24 @@ class SearchAgent:
                 advanced_mode=advanced_mode
             )
             news_result = news_agent.process()
-            if isinstance(news_result, dict):
-                news_result = json.dumps(news_result, indent=2)
-            news_result = MarkdownAgent(user_text=news_result).generate_markdown()
-            report_lines.append("# News Analysis:")
-            report_lines.append(news_result)
-            report_lines.append("\n")
-            report_lines.append("-" * 40)
-            report_lines.append("\n")
+            news_markdown = MarkdownAgent(user_text=news_result).generate_markdown()
+            
+            # Dividir y subir chunks
+            news_chunks = chunk_text(news_markdown)
+            for i, chunk in enumerate(news_chunks):
+                doc = {
+                    "text": chunk,
+                    "metadata": {
+                        **base_metadata,
+                        "analysis_type": "news",
+                        "chunk_number": i+1,
+                        "total_chunks": len(news_chunks),
+                        "source": "NewsAnalysisAgent"
+                    }
+                }
+                entity.add_documents([doc])
 
-            # # Agente makroekonomikoa
-            # macro_agent = MacroeconomicAnalysisAgent(
-            #     entity_type=entity.entity_type,
-            #     sector=entity.sector,
-            #     country=entity.country,
-            #     date_range=self.date_range
-            # )
-            # macro_result = macro_agent.process()
-            # report_lines.append("**Macroeconomic Analysis:**")
-            # report_lines.append(macro_result)
-            # report_lines.append("\n")
-
-            # Funtzesko analisi agentea
+            # 2. Análisis Fundamental
             fundamental_agent = FundamentalAnalysisAgent(
                 company=entity.name,
                 ticker=entity.ticker,
@@ -263,32 +288,23 @@ class SearchAgent:
                 date_range=self.date_range,
             )
             fundamental_result = fundamental_agent.process()
-            if isinstance(news_result, dict):
-                fundamental_result = json.dumps(fundamental_result, indent=2)
-            fundamental_result = MarkdownAgent(user_text=fundamental_result).generate_markdown()
-            report_lines.append("# Fundamental Analysis:")
-            report_lines.append(fundamental_result)
-            report_lines.append("\n")
-            report_lines.append("-" * 40)
-            report_lines.append("\n")
-
-            # # Analissi tekniko agentea
-            # technical_agent = TechnicalAnalysisAgent(
-            #     ticker=entity.ticker,
-            #     entity_type=entity.entity_type,
-            #     date_range=self.date_range
-            # )
-            # technical_result = technical_agent.process()
-            # report_lines.append("**Technical Analysis:**")
-            # report_lines.append(technical_result)
-            # report_lines.append("\n")
+            fundamental_markdown = MarkdownAgent(user_text=fundamental_result).generate_markdown()
             
-            # Entitate bakoitzaren banatzailea
-            report_lines.append("_" * 40)
-            report_lines.append("\n")
+            # Dividir y subir chunks
+            fund_chunks = chunk_text(fundamental_markdown)
+            for i, chunk in enumerate(fund_chunks):
+                doc = {
+                    "text": chunk,
+                    "metadata": {
+                        **base_metadata,
+                        "analysis_type": "fundamental",
+                        "chunk_number": i+1,
+                        "total_chunks": len(fund_chunks),
+                        "source": "FundamentalAnalysisAgent"
+                    }
+                }
+                entity.add_documents([doc])
 
-        # Txosten guztiak batu
-        final_report = "\n".join(map(str, report_lines))
-        # final_report = MarkdownAgent(user_text=final_report).generate_markdown()
-        
-        return final_report
+        # Generar reporte final (opcional)
+        # final_report = self._generate_final_report()
+        return 'Reporte generado y documentos subidos a la base de datos.'

@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_session import Session
-from main import main
 from markdown import markdown
 import os, json, glob
+from werkzeug.utils import secure_filename
+from utils import allowed_file, process_file
+from main import main
 
 # Oinarrizko flask konfigurazioa
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))
@@ -50,6 +52,14 @@ def index():
     translations = languages.get(lang_code, {})
     
     if request.method == "POST":
+        if 'file' in request.files:
+            files = request.files.getlist('file')
+            for file in files:
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join('data', filename)
+                    file.save(filepath)
+            
         user_input = request.form.get("user_input", "").strip()
         advanced_mode = request.form.get("advanced_mode") == "true"
 
