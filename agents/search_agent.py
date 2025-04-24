@@ -17,22 +17,7 @@ from together import Together
 class SearchAgent:
     def __init__(self, user_prompt):
         load_dotenv()
-        handler = colorlog.StreamHandler()
-        handler.setFormatter(
-            colorlog.ColoredFormatter(
-                "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
-                log_colors={
-                    'DEBUG': 'cyan',
-                    'INFO': 'green',
-                    'WARNING': 'yellow',
-                    'ERROR': 'red',
-                    'CRITICAL': 'red,bg_white',
-                }
-            )
-        )
-        logger = colorlog.getLogger()
-        logger.setLevel(logging.INFO)
-        logger.addHandler(handler)
+        self._configure_logging()
 
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
@@ -41,6 +26,23 @@ class SearchAgent:
         self.current_date = datetime.now()
         self.expiration_date = None
         self.date_range = None
+
+    def _configure_logging(self):
+        logger = colorlog.getLogger()
+        if not logger.handlers:
+            handler = colorlog.StreamHandler()
+            handler.setFormatter(colorlog.ColoredFormatter(
+                "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
+                log_colors={
+                    'DEBUG': 'cyan',
+                    'INFO': 'green',
+                    'WARNING': 'yellow',
+                    'ERROR': 'red',
+                    'CRITICAL': 'red,bg_white',
+                }
+            ))
+            logger.setLevel(logging.INFO)
+            logger.addHandler(handler)
 
     def _identify_entities(self):
         prompt = f"""
@@ -244,6 +246,7 @@ class SearchAgent:
 
         # Procesar cada entidad
         for entity in self.entities:
+            entity.create_vector_index()
             base_metadata = {
                 "entity": entity.name,
                 "ticker": entity.ticker,
@@ -305,6 +308,28 @@ class SearchAgent:
                 }
                 entity.add_documents([doc])
 
-        # Generar reporte final (opcional)
-        # final_report = self._generate_final_report()
-        return 'Reporte generado y documentos subidos a la base de datos.'
+            # Búsqueda Semántica optimizada
+            self._handle_semantic_search(entity)
+
+        return 'Reporte generado.'
+    
+    def _handle_semantic_search(self, entity):
+        try:
+            search_results = entity.semantic_search(
+                query=self.user_prompt,
+                k=5,
+                num_candidates=50
+            )
+            
+            if search_results:
+                result_str = "\n".join(
+                    f"{i+1}. {res['text'][:150]}..." 
+                    for i, res in enumerate(search_results)
+                )
+                logging.info(f"\n🔍 Resultados para {entity.name}:\n{result_str}")
+            
+            entity.drop_vector_index()
+            
+        except Exception as e:
+            logging.error(f"Error en búsqueda: {str(e)}")
+            entity.drop_vector_index()

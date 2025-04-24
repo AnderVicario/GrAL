@@ -7,8 +7,6 @@ from pymongo.server_api import ServerApi
 from pymongo.operations import SearchIndexModel
 from fastembed import TextEmbedding
 
-logging.basicConfig(level=logging.INFO)
-
 # Oinarrizko konfigurazioa kargatu
 load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")

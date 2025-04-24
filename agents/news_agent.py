@@ -6,8 +6,6 @@ import logging
 import re
 from together import Together
 
-logging.basicConfig(level=logging.INFO)
-
 class NewsAnalysisAgent:
     def __init__(self, entity, search_terms, primary_language, date_range, 
                  sector=None, country=None, advanced_mode=False, max_results=20, search_mode="scraping"):
