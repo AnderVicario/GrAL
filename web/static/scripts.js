@@ -101,3 +101,53 @@ function handleFileSelect(event) {
         fileListDiv.classList.add('hidden');
     }
 }
+
+// Manejar navegación del carrusel
+document.querySelectorAll('.carousel-container').forEach(container => {
+    const prevBtn = container.querySelector('.carousel-prev');
+    const nextBtn = container.querySelector('.carousel-next');
+    const items = Array.from(container.querySelectorAll('.carousel-item'));
+    let currentIndex = items.findIndex(item => item.classList.contains('active'));
+  
+    const updateNavigation = () => {
+      prevBtn.style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
+      nextBtn.style.visibility = currentIndex === items.length - 1 ? 'hidden' : 'visible';
+    };
+  
+    function showItem(index) {
+      // Bloquea botones durante la transición
+      prevBtn.style.pointerEvents = 'none';
+      nextBtn.style.pointerEvents = 'none';
+  
+      // Oculta slide actual
+      items[currentIndex].classList.remove('active');
+      items[currentIndex].classList.add('hidden');
+  
+      // Muestra slide nuevo
+      items[index].classList.remove('hidden');
+      items[index].classList.add('active');
+  
+      currentIndex = index;
+      updateNavigation();
+  
+      // Rehabilita botones tras la transición
+      setTimeout(() => {
+        prevBtn.style.pointerEvents = 'auto';
+        nextBtn.style.pointerEvents = 'auto';
+      }, 300);
+    }
+  
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) showItem(currentIndex - 1);
+    });
+  
+    nextBtn.addEventListener('click', () => {
+      if (currentIndex < items.length - 1) showItem(currentIndex + 1);
+    });
+  
+    // Inicializa estado
+    items.forEach((item, i) => {
+      if (i !== currentIndex) item.classList.add('hidden');
+    });
+    updateNavigation();
+  });

@@ -85,3 +85,30 @@ animation: spin 1s linear infinite;
 .submit-transition {
     transition: all 0.3s ease;
   }
+
+.carousel-prev, .carousel-next {
+    transform: translateY(0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.entity-indicator {
+    display: flex;
+    align-items: center;
+    padding: 0 0.5rem;
+}
+
+.carousel-item {
+    transition: opacity 0.3s ease;
+    position: relative; /* Cambiado de absolute */
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.carousel-item.active {
+    opacity: 1;
+    height: auto;
+    overflow: visible;
+}

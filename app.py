@@ -71,14 +71,21 @@ def index():
             })
             
             # Botaren erantzuna lortu
-            bot_response = markdown(main(user_input, advanced_mode), extensions=['nl2br'])
-            
-            # Erantzuna gorde
+            bot_reports = main(user_input, advanced_mode)
+        
+            # Convertir a formato Markdown
+            formatted_reports = [{
+                "entity": report["entity_name"],
+                "content": markdown(report["content"], extensions=['nl2br']),
+                "ticker": report["ticker"]
+            } for report in bot_reports]
+
             session['conversation'].append({
                 "sender": "1",
-                "message": bot_response
+                "message": formatted_reports,
+                "type": "multi_report",
+                "current_index": 0
             })
-            
             session.modified = True  # Saioaren aldaketak gorde
             
         return redirect(url_for("index"))

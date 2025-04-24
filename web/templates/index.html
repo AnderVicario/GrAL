@@ -55,18 +55,54 @@
                          style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'>
                     </div>
                   </div>
-                {% else %}
-                  <!-- AAren mezuak -->
-                  <div class="flex items-end gap-3 p-4">
+                {% elif message.type == "multi_report" %}
+                  <!-- Bot messages with carousel for multi_report -->
+                  <div class="flex items-start gap-3 p-4">
                     <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/8029f34c-93c4-4185-98e4-617a2b55e4e6.png");'>
+                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'>
                     </div>
-                    <div class="flex flex-1 flex-col gap-1 items-start">
+                    <div class="flex flex-1 flex-col gap-1">
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">
-                        {{ translations.ai }}
+                        {{ translations.bot|default('Bot') }}
                       </p>
-                      <div class="message-content text-base font-normal leading-normal max-w-[900px] rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
-                        {{ message.message | safe }}
+                      <!-- Carousel container styled like a message -->
+                      <div class="rounded-xl px-4 py-3 bg-[#3C3F4A] text-[#F9FAFA] break-words">
+                        <!-- Carousel container -->
+                        <div class="carousel-container relative w-full">
+                          
+                          <!-- Carousel content -->
+                          <div class="carousel-content">
+                            {% for report in message.message %}
+                              <div class="carousel-item {% if loop.first %}active{% else %}hidden{% endif %}" 
+                                data-entity="{{ report.entity }}" 
+                                data-index="{{ loop.index0 }}">
+                                <!-- Contenido del mensaje -->
+                                <div class="message-content">
+                                  {{ report.content | safe }}
+                                </div>
+                                
+                                <!-- Controles e indicador -->
+                                <div class="flex items-center justify-center gap-2 mt-2">
+                                  <button class="carousel-prev bg-[#2D2F36] rounded-full p-1 hover:bg-[#607AFB] transition-colors">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                    </svg>
+                                  </button>
+                                  
+                                  <div class="entity-indicator text-[#D5D6DD] text-xs px-2 py-1 bg-[#2D2F36] rounded-lg">
+                                    {{ report.ticker }} ({{ loop.index }}/{{ message.message|length }})
+                                  </div>
+                                  
+                                  <button class="carousel-next bg-[#2D2F36] rounded-full p-1 hover:bg-[#607AFB] transition-colors">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

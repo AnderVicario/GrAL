@@ -3,6 +3,7 @@ import logging
 import json
 import re
 import colorlog
+from agents.analysis_agent import AnalysisAgent
 from agents.news_agent import NewsAnalysisAgent
 from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
@@ -214,6 +215,7 @@ class SearchAgent:
 
     def process_all(self, advanced_mode=False):
         self._process_entities()
+        all_reports = []
         
         # Helper para dividir texto en chunks
         def chunk_text(text, max_chars=1500):
@@ -309,27 +311,36 @@ class SearchAgent:
                 entity.add_documents([doc])
 
             # Búsqueda Semántica optimizada
-            self._handle_semantic_search(entity)
+            entity_results = self._handle_semantic_search(entity)
+            analysis_agent = AnalysisAgent(
+                user_prompt=self.user_prompt,
+                date_range=self.date_range,
+                context=entity_results
+            )
+            final_report = analysis_agent.generate_final_analysis()
+            final_markdown = MarkdownAgent(user_text=final_report).generate_markdown()
 
-        return 'Reporte generado.'
+            all_reports.append({
+                "entity_name": entity.name,
+                "content": final_markdown,
+                "ticker": entity.ticker
+            })
+
+        return all_reports
     
     def _handle_semantic_search(self, entity):
-        try:
-            search_results = entity.semantic_search(
-                query=self.user_prompt,
-                k=5,
-                num_candidates=50
+        search_results = entity.semantic_search(
+            query=self.user_prompt,
+            k=5,
+            num_candidates=50
+        )
+        
+        if search_results:
+            result_str = "\n".join(
+                f"{i+1}. {res['text'][:150]}..." 
+                for i, res in enumerate(search_results)
             )
-            
-            if search_results:
-                result_str = "\n".join(
-                    f"{i+1}. {res['text'][:150]}..." 
-                    for i, res in enumerate(search_results)
-                )
-                logging.info(f"\n🔍 Resultados para {entity.name}:\n{result_str}")
-            
-            entity.drop_vector_index()
-            
-        except Exception as e:
-            logging.error(f"Error en búsqueda: {str(e)}")
-            entity.drop_vector_index()
+            logging.info(f"\n🔍 Resultados para {entity.name}:\n{result_str}")
+        
+        entity.drop_vector_index()
+        return search_results
