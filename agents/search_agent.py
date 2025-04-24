@@ -185,6 +185,72 @@ class SearchAgent:
             self.expiration_date = expiration_date_str
             self.date_range = None
 
+    def _distil_query(self, entity):
+        prompt = f"""
+        You are a financial synthesis agent. Your task is to take two inputs:
+
+        1. A **user prompt** – a financial or economic question or request, possibly broad or referring to multiple assets.  
+        2. A **specific asset** – this can be a cryptocurrency, company, bank, index, country, or any economic entity.
+
+        Your goal is to:
+
+        - **Extract and reinterpret** the core intent behind the user's original prompt, focusing **exclusively** on the specific asset provided.
+        - **Ignore comparisons, general questions, or references to other entities** – even if present in the user's query.
+        - Output a **concise, precise, and actionable financial query** that relates solely to the given asset.
+
+        Be professional, accurate, and specific. Do not invent facts. If the user’s intent is vague or overly general, assume a request for **general financial analysis** of the asset (including recent trends, relevant metrics, and news).
+
+        ### Output IMPORTANT Requirements:
+        - Return **ONLY** the refined prompt.
+        - Do **NOT** include any additional text, explanations, or new lines.
+
+        ---
+
+        **Examples:**
+
+        - **User Prompt:** *“How are cryptocurrencies performing so far this year?”*  
+        **Asset:** *Ethereum*  
+        **Refined Prompt:** `Provide a general analysis of Ethereum's performance this year, including price trends, key metrics, and major news.`
+
+        - **User Prompt:** *“Compare the performance of Bitcoin and Ethereum this quarter.”*  
+        **Asset:** *Ethereum*  
+        **Refined Prompt:** `Analyze Ethereum's performance this quarter in isolation, including price evolution, trading volume, and relevant developments.`
+
+        - **User Prompt:** *“Which tech companies are managing risk better during inflation?”*  
+        **Asset:** *Apple Inc.*  
+        **Refined Prompt:** `Assess how Apple Inc. is managing risk during the current inflationary period, including financial and strategic measures.`
+
+        ---
+
+        User Prompt:  
+        {self.user_prompt}
+
+        Asset:  
+        {entity.name}
+
+        Refined Prompt:
+        """
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full_response = ""
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+        response_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        logging.info(f"Refined Prompt: {response_text}")
+        return response_text
+
     def _process_entities(self):
         self._set_expiration_date()
         response_text = self._identify_entities()
@@ -313,7 +379,7 @@ class SearchAgent:
             # Búsqueda Semántica optimizada
             entity_results = self._handle_semantic_search(entity)
             analysis_agent = AnalysisAgent(
-                user_prompt=self.user_prompt,
+                user_prompt=self._distil_query(entity),
                 date_range=self.date_range,
                 context=entity_results
             )

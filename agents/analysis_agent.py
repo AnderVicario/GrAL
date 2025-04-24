@@ -50,6 +50,8 @@ class AnalysisAgent:
                 - Quantitative Results  
                 - Qualitative Insights  
             3. **Conclusion & Action Plan**
+        - Prioritize **data-driven insights** over general commentary.
+        - Do **NOT** include any additional text, explanations, or new lines.
 
         4. STYLE GUIDELINES
         - Professional, precise, and jargon-light.

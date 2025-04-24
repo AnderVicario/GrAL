@@ -8,22 +8,6 @@ from together import Together
 class MarkdownAgent:
     def __init__(self, user_text):
         load_dotenv()
-        handler = colorlog.StreamHandler()
-        handler.setFormatter(
-            colorlog.ColoredFormatter(
-                "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
-                log_colors={
-                    'DEBUG': 'cyan',
-                    'INFO': 'green',
-                    'WARNING': 'yellow',
-                    'ERROR': 'red',
-                    'CRITICAL': 'red,bg_white',
-                }
-            )
-        )
-        logger = colorlog.getLogger()
-        logger.setLevel(logging.INFO)
-        logger.addHandler(handler)
 
         self.llm_client = Together()
         self.model_name = "meta-llama/Llama-Vision-Free"
