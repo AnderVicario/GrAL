@@ -102,52 +102,77 @@ function handleFileSelect(event) {
     }
 }
 
-// Manejar navegación del carrusel
-document.querySelectorAll('.carousel-container').forEach(container => {
-    const prevBtn = container.querySelector('.carousel-prev');
-    const nextBtn = container.querySelector('.carousel-next');
-    const items = Array.from(container.querySelectorAll('.carousel-item'));
-    let currentIndex = items.findIndex(item => item.classList.contains('active'));
+// Manejar toda la lógica del carrusel usando event delegation
+document.addEventListener('click', function(event) {
+    // Detectar clics en botones de navegación
+    if (event.target.closest('.carousel-prev, .carousel-next')) {
+      const button = event.target.closest('.carousel-prev, .carousel-next');
+      const container = button.closest('.carousel-container');
+      
+      const items = Array.from(container.querySelectorAll('.carousel-item'));
+      const currentIndex = items.findIndex(item => item.classList.contains('active'));
+      const totalItems = items.length;
   
-    const updateNavigation = () => {
-      prevBtn.style.visibility = currentIndex === 0 ? 'hidden' : 'visible';
-      nextBtn.style.visibility = currentIndex === items.length - 1 ? 'hidden' : 'visible';
-    };
+      // Determinar dirección
+      const isPrev = button.classList.contains('carousel-prev');
+      let newIndex = isPrev ? currentIndex - 1 : currentIndex + 1;
   
-    function showItem(index) {
-      // Bloquea botones durante la transición
-      prevBtn.style.pointerEvents = 'none';
-      nextBtn.style.pointerEvents = 'none';
+      // Asegurar que el índice esté dentro de los límites
+      newIndex = Math.max(0, Math.min(newIndex, totalItems - 1));
   
-      // Oculta slide actual
-      items[currentIndex].classList.remove('active');
-      items[currentIndex].classList.add('hidden');
+      // Actualizar solo si el índice cambió
+      if (newIndex !== currentIndex) {
+        // Ocultar elemento actual
+        items[currentIndex].classList.remove('active');
+        items[currentIndex].classList.add('hidden');
   
-      // Muestra slide nuevo
-      items[index].classList.remove('hidden');
-      items[index].classList.add('active');
+        // Mostrar nuevo elemento
+        items[newIndex].classList.remove('hidden');
+        items[newIndex].classList.add('active');
   
-      currentIndex = index;
-      updateNavigation();
+        // Actualizar indicador de posición
+        const indicator = container.querySelector('.entity-indicator');
+        if (indicator) {
+          const ticker = items[newIndex].dataset.entity;
+          indicator.textContent = `${ticker} (${newIndex + 1}/${totalItems})`;
+        }
+      }
   
-      // Rehabilita botones tras la transición
-      setTimeout(() => {
-        prevBtn.style.pointerEvents = 'auto';
-        nextBtn.style.pointerEvents = 'auto';
-      }, 300);
+      // Actualizar estado de los botones
+      const prevBtn = container.querySelector('.carousel-prev');
+      const nextBtn = container.querySelector('.carousel-next');
+      prevBtn.classList.toggle('!invisible', newIndex === 0);
+      nextBtn.classList.toggle('!invisible', newIndex === totalItems - 1);
     }
-  
-    prevBtn.addEventListener('click', () => {
-      if (currentIndex > 0) showItem(currentIndex - 1);
-    });
-  
-    nextBtn.addEventListener('click', () => {
-      if (currentIndex < items.length - 1) showItem(currentIndex + 1);
-    });
-  
-    // Inicializa estado
-    items.forEach((item, i) => {
-      if (i !== currentIndex) item.classList.add('hidden');
-    });
-    updateNavigation();
   });
+  
+  // Inicialización de carruseles al cargar
+  function initCarousels() {
+    document.querySelectorAll('.carousel-container').forEach(container => {
+      const items = container.querySelectorAll('.carousel-item');
+      const totalItems = items.length;
+      
+      // Asegurar que solo el primer elemento esté visible
+      items.forEach((item, index) => {
+        item.classList.toggle('hidden', index !== 0);
+        item.classList.toggle('active', index === 0);
+      });
+  
+      // Actualizar indicadores iniciales
+      const indicator = container.querySelector('.entity-indicator');
+      if (indicator && totalItems > 0) {
+        const ticker = items[0].dataset.entity;
+        indicator.textContent = `${ticker} (1/${totalItems})`;
+      }
+  
+      // Configurar visibilidad inicial de botones
+      const prevBtn = container.querySelector('.carousel-prev');
+      const nextBtn = container.querySelector('.carousel-next');
+      prevBtn?.classList.add('!invisible');
+      nextBtn?.classList.toggle('!invisible', totalItems <= 1);
+    });
+  }
+  
+  // Ejecutar al cargar y cada vez que se actualice el contenido
+  document.addEventListener('DOMContentLoaded', initCarousels);
+  document.addEventListener('chatUpdate', initCarousels); // Disparar este evento cuando se actualice el chat

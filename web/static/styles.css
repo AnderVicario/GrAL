@@ -101,7 +101,7 @@ animation: spin 1s linear infinite;
 
 .carousel-item {
     transition: opacity 0.3s ease;
-    position: relative; /* Cambiado de absolute */
+    position: relative;
     opacity: 0;
     height: 0;
     overflow: hidden;
