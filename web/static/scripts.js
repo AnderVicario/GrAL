@@ -1,172 +1,128 @@
-document.getElementById('langToggle').addEventListener('click', function() {
-    const dropdown = document.getElementById('langDropdown');
-    dropdown.classList.toggle('hidden');
-  });
-  
-  // Itxi dropdown-a kanpoan klik eginez gero
-  document.addEventListener('click', function(event) {
-    const dropdown = document.getElementById('langDropdown');
-    const toggleButton = document.getElementById('langToggle');
-    
-    if (!dropdown.contains(event.target) && !toggleButton.contains(event.target)) {
-      dropdown.classList.add('hidden');
-    }
-  });
+// === Hizkuntza menuaren bistaratzea ===
+const langToggle = document.getElementById('langToggle');
+const langDropdown = document.getElementById('langDropdown');
 
+langToggle.addEventListener('click', () => {
+  langDropdown.classList.toggle('hidden');
+});
+
+document.addEventListener('click', (e) => {
+  if (!langDropdown.contains(e.target) && !langToggle.contains(e.target)) {
+    langDropdown.classList.add('hidden');
+  }
+});
+
+// === Modu aurreratuaren aktibazioa ===
 let isAdvancedMode = false;
+const advancedToggle = document.getElementById('advancedToggle');
+const advancedIcon   = document.getElementById('advancedIcon');
 
-// Bisualki aurreratutako modua aktibatzeko/desaktibatzeko funtzioa
-document.getElementById('advancedToggle').addEventListener('click', function () {
-    isAdvancedMode = !isAdvancedMode;
-    const icon = document.getElementById('advancedIcon');
-
-    if (isAdvancedMode) {
-        icon.classList.remove('text-[#D5D6DD]');
-        icon.classList.add('text-[#607AFB]');
-    } else {
-        icon.classList.remove('text-[#607AFB]');
-        icon.classList.add('text-[#D5D6DD]');
-    }
+advancedToggle.addEventListener('click', () => {
+  isAdvancedMode = !isAdvancedMode;
+  advancedIcon.classList.toggle('text-[#607AFB]', isAdvancedMode);
+  advancedIcon.classList.toggle('text-[#D5D6DD]', !isAdvancedMode);
 });
 
-// Formularioa atzematea eta egoera modu aurreratuan bidaltzea
-document.querySelector('form').addEventListener('submit', function (event) {
-    event.preventDefault();
+// === Inprimakia bidali eta karga‐ikonoa erakutsi ===
+const form          = document.querySelector('form');
+const submitBtn     = document.getElementById('submitButton');
+const submitText    = document.getElementById('submitText');
+const loadingSpinner = document.getElementById('loadingSpinner');
 
-    const form = event.target;
-    const inputField = form.querySelector('input[name="user_input"]');
-    const userInput = inputField.value.trim();
-    const submitButton = document.getElementById('submitButton');
-    const submitText = document.getElementById('submitText');
-    const loadingSpinner = document.getElementById('loadingSpinner');
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = form.querySelector('input[name="user_input"]').value.trim();
+  if (!input) return;
 
-    if (userInput) {
-        // Spinner-a eta botoia kargatzen erakutsi
-        submitText.classList.add('hidden');
-        loadingSpinner.classList.remove('hidden');
-        submitButton.disabled = true;
-        submitButton.classList.add('opacity-75');
+  // biraka‐ikonoa erakutsi
+  submitText.classList.add('hidden');
+  loadingSpinner.classList.remove('hidden');
+  submitBtn.disabled = true;
+  submitBtn.classList.add('opacity-75');
 
-        const formData = new FormData(form);
-        formData.append('advanced_mode', isAdvancedMode);
+  const data = new FormData(form);
+  data.append('advanced_mode', isAdvancedMode);
 
-        fetch(form.action, {
-            method: form.method,
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                // Input-a garbitu
-                inputField.value = '';
-                
-                // Botoia eta spinner-a berrezarri
-                submitText.classList.remove('hidden');
-                loadingSpinner.classList.add('hidden');
-                submitButton.disabled = false;
-                submitButton.classList.remove('opacity-75');
-                
-                window.location.reload();
-            }
-        }).catch(error => {
-            console.error(error);
-            submitText.classList.remove('hidden');
-            loadingSpinner.classList.add('hidden');
-            submitButton.disabled = false;
-            submitButton.classList.remove('opacity-75');
-        });
+  fetch(form.action, {
+    method: form.method,
+    body: data
+  })
+  .then(res => {
+    if (res.ok) {
+      form.reset();
+      window.location.reload();
     }
-});
-
-function handleFileSelect(event) {
-    const files = event.target.files;
-    const fileListDiv = document.getElementById('fileList');
-    const translations = window.translations || {};
-
-    if (files.length > 0) {
-        for (let i = 0; i < files.length; i++) {
-            fileListDiv.innerHTML += `
-                <div class="flex items-center gap-2 mb-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="flex-shrink-0">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <path d="M14 2v6h6"/>
-                        <path d="M12 18v-6"/>
-                        <path d="M9 15h6"/>
-                    </svg>
-                    <span class="truncate">${files[i].name}</span>
-                </div>
-            `;
-        }
-        
-        fileListDiv.classList.remove('hidden');
-    } else {
-        fileListDiv.classList.add('hidden');
-    }
-}
-
-// Karuselaren logika osoa kudeatu
-document.addEventListener('click', function(event) {
-  if (event.target.closest('.carousel-prev, .carousel-next')) {
-    const button = event.target.closest('.carousel-prev, .carousel-next');
-    const container = button.closest('.carousel-container');
-    
-    const items = Array.from(container.querySelectorAll('.carousel-item'));
-    const currentIndex = items.findIndex(item => item.classList.contains('active'));
-    const totalItems = items.length;
-
-    const isPrev = button.classList.contains('carousel-prev');
-    let newIndex = isPrev ? currentIndex - 1 : currentIndex + 1;
-
-    newIndex = Math.max(0, Math.min(newIndex, totalItems - 1));
-
-    if (newIndex !== currentIndex) {
-      items[currentIndex].classList.remove('active');
-      items[currentIndex].classList.add('hidden');
-
-      items[newIndex].classList.remove('hidden');
-      items[newIndex].classList.add('active');
-
-      // Posizio-adierazlea eguneratu
-      const indicator = container.querySelector('.entity-indicator');
-      if (indicator) {
-        const ticker = items[newIndex].dataset.entity;
-        indicator.textContent = `${ticker} (${newIndex + 1}/${totalItems})`;
-      }
-    }
-
-    // Botoien egoera eguneratu
-    const prevBtn = container.querySelector('.carousel-prev');
-    const nextBtn = container.querySelector('.carousel-next');
-    prevBtn.classList.toggle('!invisible', newIndex === 0);
-    nextBtn.classList.toggle('!invisible', newIndex === totalItems - 1);
-  }
-});
-
-// Karuselak hasieratu orrialdea kargatzean
-function initCarousels() {
-document.querySelectorAll('.carousel-container').forEach(container => {
-  const items = container.querySelectorAll('.carousel-item');
-  const totalItems = items.length;
-
-  // Lehen elementua bakarrik bistaratu
-  items.forEach((item, index) => {
-    item.classList.toggle('hidden', index !== 0);
-    item.classList.toggle('active', index === 0);
+  })
+  .catch(err => {
+    console.error(err);
+    submitText.classList.remove('hidden');
+    loadingSpinner.classList.add('hidden');
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-75');
   });
-
-  // Hasierako adierazlea ezarri
-  const indicator = container.querySelector('.entity-indicator');
-  if (indicator && totalItems > 0) {
-    const ticker = items[0].dataset.entity;
-    indicator.textContent = `${ticker} (1/${totalItems})`;
-  }
-
-  // Botoien hasierako egoera ezarri
-  const prevBtn = container.querySelector('.carousel-prev');
-  const nextBtn = container.querySelector('.carousel-next');
-  prevBtn?.classList.add('!invisible');
-  nextBtn?.classList.toggle('!invisible', totalItems <= 1);
 });
+
+// === Fitxategien aurreikuspena ===
+function handleFileSelect(e) {
+  const files = e.target.files;
+  const fileListDiv = document.getElementById('fileList');
+
+  if (files.length) {
+    let html = '';
+    for (const f of files) {
+      html += `
+        <div class="flex items-center gap-2 mb-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" …>…</svg>
+          <span class="truncate">${f.name}</span>
+        </div>
+      `;
+    }
+    fileListDiv.innerHTML = html;
+    fileListDiv.classList.remove('hidden');
+  } else {
+    fileListDiv.classList.add('hidden');
+  }
 }
 
-// Karuselak exekutatu kargatzean eta edukiak eguneratzean
-document.addEventListener('DOMContentLoaded', initCarousels);
-document.addEventListener('chatUpdate', initCarousels);
+document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+// === Karuselaren logika ===
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.carousel-prev, .carousel-next');
+  if (!btn) return;
+
+  const container = btn.closest('.carousel-container');
+  const items = Array.from(container.querySelectorAll('.carousel-item'));
+  const current = items.findIndex(i => i.classList.contains('active'));
+  const dir = btn.classList.contains('carousel-prev') ? -1 : +1;
+  const next = Math.min(Math.max(current + dir, 0), items.length - 1);
+
+  if (next !== current) {
+    items[current].classList.replace('active', 'hidden');
+    items[next].classList.replace('hidden', 'active');
+
+    // botoien egoera eguneratu
+    container.querySelector('.carousel-prev')
+      .classList.toggle('!invisible', next === 0);
+    container.querySelector('.carousel-next')
+      .classList.toggle('!invisible', next === items.length - 1);
+  }
+});
+
+function initCarousels() {
+  document.querySelectorAll('.carousel-container').forEach(c => {
+    const items = c.querySelectorAll('.carousel-item');
+    items.forEach((it, i) => {
+      it.classList.toggle('active', i === 0);
+      it.classList.toggle('hidden',  i !== 0);
+    });
+    c.querySelector('.carousel-prev')?.classList.add('!invisible');
+    c.querySelector('.carousel-next')
+     .classList.toggle('!invisible', items.length <= 1);
+  });
+}
+
+// orria kargatzean eta txata eguneratzean exekutatu
+['DOMContentLoaded', 'chatUpdate'].forEach(evt =>
+  document.addEventListener(evt, initCarousels)
+);
