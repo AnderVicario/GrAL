@@ -122,7 +122,7 @@ function initCarousels() {
   });
 }
 
-// orria kargatzean eta txata eguneratzean exekutatu
+// Orria kargatzean eta txata eguneratzean exekutatu
 ['DOMContentLoaded', 'chatUpdate'].forEach(evt =>
   document.addEventListener(evt, initCarousels)
 );
