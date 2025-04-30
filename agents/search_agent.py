@@ -412,11 +412,11 @@ class SearchAgent:
             logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
 
         # Búsqueda global (colección compartida como 'global_documents')
-        global_entity = VectorMongoDB("global_documents")
-        global_entity.create_vector_index()  # asegúrate de que esté creado
+        global_entity = VectorMongoDB("global_reports")
         search_results_global = global_entity.semantic_search(
             query=self.user_prompt,
-            k=5
+            k=5,
+            num_candidates=50
         )
 
         if search_results_global:
@@ -428,7 +428,7 @@ class SearchAgent:
 
         # Limpieza
         entity.drop_vector_index()
-        global_entity.drop_vector_index()
+        global_entity.drop_vector_index("global_reports")
 
         # Puedes devolver ambos o combinarlos:
         return {

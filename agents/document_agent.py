@@ -38,31 +38,33 @@ class DocumentAgent:
     def select_financial_entity(self, filename: str, first_page_content: str) -> str:
         prompt = f"""
         You are a document classification agent.
-        Your task is to determine whether a given document belongs to any company from a list provided by the user.
+        Your task is to determine whether a given document is clearly associated with a specific entity.
 
         You will receive:
         - The file name of the document.
         - The text content of the document's first page.
-        - A list of company names.
 
         Your instructions:
         - Analyze both the file name and the first page content.
-        - Identify any direct or indirect references to the companies in the list.
-        - If the document clearly belongs to one of the companies, output the company name.
+        - Identify any direct or indirect references to identifiable entities such as:
+        - Companies (e.g., Google, Amazon)
+        - Cryptocurrencies (e.g., Bitcoin, Ethereum)
+        - ETFs (e.g., SPY, QQQ)
+        - Investment funds or financial instruments
+
+        - If the document clearly belongs to one of these entities, output the entity name.
         - If there is no clear match, output "No match found".
 
-        Be strict: only confirm a match if there is enough evidence (like the company name appearing, a related brand, or unique identifiers).
+        Be strict: only confirm a match if there is strong evidence (like the entity name, ticker symbol, related brand, or unique identifiers).
 
-        Format your answer like this, do NOT add anything else including explanations:
+        Format your answer exactly like this, do NOT add anything else including explanations:
 
-        Company: [Company Name or "No match found"]
+        Company: [Entity Name or "No match found"]
 
         ----
 
         File name: {filename}
         First page content: {first_page_content}
-        User company list: {self.company_list}
-
         """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
@@ -114,7 +116,7 @@ class VectorMongoDB:
         self.coll = _db[collection_name]
         self.embedder = TextEmbedding(model_name=EMBEDDING_MODEL)
 
-    def create_vector_index(self, index_name: str = "vector_index"):
+    def create_vector_index(self, index_name: str):
         index = SearchIndexModel(
             definition={"fields": [{"type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine", "quantization": "scalar"}]},
             name=index_name,
@@ -126,14 +128,14 @@ class VectorMongoDB:
         except Exception as e:
             logging.error(f"Error creating index: {e}")
 
-    def drop_vector_index(self, index_name: str = "vector_index"):
+    def drop_vector_index(self, index_name: str):
         try:
             self.coll.drop_search_index(index_name)
             logging.info(f"Dropped index '{index_name}' from '{self.coll.name}'")
         except Exception as e:
             logging.error(f"Error dropping index: {e}")
 
-    def add_documents(self, chunks: List[dict], metadata: dict):  # Cambio aquí
+    def add_documents(self, chunks: List[dict]):
         texts = [chunk["text"] for chunk in chunks]
         embeddings = list(self.embedder.embed(texts))
         
@@ -142,11 +144,7 @@ class VectorMongoDB:
             doc = {
                 "text": chunk["text"],
                 "embedding": emb.tolist(),
-                "metadata": {
-                    **metadata,
-                    "chunk_number": chunk["chunk_number"],
-                    "total_chunks": chunk["total_chunks"]
-                }
+                "metadata": chunk.get("metadata", {})
             }
             docs.append(doc)
         
@@ -156,11 +154,24 @@ class VectorMongoDB:
         except Exception as e:
             logging.error(f"Error de inserción: {e}")
 
-    def semantic_search(self, query: str, k: int = 10) -> List[dict]:
+    def semantic_search(self, query: str, k: int = 10, num_candidates: int = 100) -> List[dict]:
         q_emb = list(self.embedder.embed([query]))[0].tolist()
         pipeline = [
-            {"$vectorSearch": {"index": "vector_index", "queryVector": q_emb, "path": "embedding", "limit": k}},
-            {"$project": {"text": 1, "_id": 0}}
+            {
+                "$vectorSearch": {
+                    "index": "vector_index",
+                    "queryVector": q_emb,
+                    "path": "embedding",
+                    "limit": k,
+                    "numCandidates": num_candidates
+                }
+            },
+            {
+                "$project": {
+                    "text": 1,
+                    "_id": 0
+                }
+            }
         ]
         try:
             return list(self.coll.aggregate(pipeline))

@@ -78,7 +78,7 @@ def index():
                         chunks = DocumentProcessor.chunk_text(full_text)
 
                         vector_db = VectorMongoDB("global_reports")
-                        vector_db.create_vector_index()
+                        vector_db.create_vector_index("global_reports")
 
                         for i, chunk in enumerate(chunks):
                             doc = {
