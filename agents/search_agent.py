@@ -9,6 +9,7 @@ from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
 from agents.technical_agent import TechnicalAnalysisAgent
 from agents.writing_agent import MarkdownAgent
+from agents.document_agent import VectorMongoDB
 from entities.financial_entity import FinancialEntity
 from dotenv import load_dotenv
 from datetime import datetime
@@ -378,6 +379,7 @@ class SearchAgent:
 
             # Búsqueda Semántica optimizada
             entity_results = self._handle_semantic_search(entity)
+            entity_results = entity_results["entity_results"] + entity_results["global_results"]
             analysis_agent = AnalysisAgent(
                 user_prompt=self._distil_query(entity),
                 date_range=self.date_range,
@@ -395,18 +397,41 @@ class SearchAgent:
         return all_reports
     
     def _handle_semantic_search(self, entity):
-        search_results = entity.semantic_search(
+        # Búsqueda en la entidad específica
+        search_results_entity = entity.semantic_search(
             query=self.user_prompt,
             k=5,
             num_candidates=50
         )
-        
-        if search_results:
-            result_str = "\n".join(
+
+        if search_results_entity:
+            result_str_entity = "\n".join(
                 f"{i+1}. {res['text'][:150]}..." 
-                for i, res in enumerate(search_results)
+                for i, res in enumerate(search_results_entity)
             )
-            logging.info(f"\n🔍 Resultados para {entity.name}:\n{result_str}")
-        
+            logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
+
+        # Búsqueda global (colección compartida como 'global_documents')
+        global_entity = VectorMongoDB("global_documents")
+        global_entity.create_vector_index()  # asegúrate de que esté creado
+        search_results_global = global_entity.semantic_search(
+            query=self.user_prompt,
+            k=5
+        )
+
+        if search_results_global:
+            result_str_global = "\n".join(
+                f"{i+1}. {res['text'][:150]}..." 
+                for i, res in enumerate(search_results_global)
+            )
+            logging.info(f"\n🌍 Resultados globales:\n{result_str_global}")
+
+        # Limpieza
         entity.drop_vector_index()
-        return search_results
+        global_entity.drop_vector_index()
+
+        # Puedes devolver ambos o combinarlos:
+        return {
+            "entity_results": search_results_entity,
+            "global_results": search_results_global
+        }

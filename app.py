@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_session import Session
 from markdown import markdown
-import os, json, glob
+import os, json, glob, asyncio
 from werkzeug.utils import secure_filename
-from utils import allowed_file, process_file
+from utils import allowed_file
 from main import main
+from agents.document_agent import DocumentAgent, DocumentProcessor, VectorMongoDB
 
 # Oinarrizko flask konfigurazioa
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))
@@ -50,7 +51,9 @@ def toggle_advanced():
 def index():
     lang_code = session.get('app_language', 'en_US')
     translations = languages.get(lang_code, {})
-    
+    user_input = request.form.get("user_input", "").strip()
+    advanced_mode = request.form.get("advanced_mode") == "true"
+
     if request.method == "POST":
         if 'file' in request.files:
             files = request.files.getlist('file')
@@ -59,9 +62,39 @@ def index():
                     filename = secure_filename(file.filename)
                     filepath = os.path.join('data', filename)
                     file.save(filepath)
-            
-        user_input = request.form.get("user_input", "").strip()
-        advanced_mode = request.form.get("advanced_mode") == "true"
+                    try:
+                        # 1. Parsear PDF
+                        pages = asyncio.run(DocumentProcessor.parse_pdf(filepath))
+                        first_page = pages[0] if pages else ""
+                        
+                        # 3. Determinar entidad financiera
+                        agent = DocumentAgent()
+                        selected_company = agent.select_financial_entity(
+                            filename, 
+                            first_page
+                        )
+
+                        full_text = "\n".join(pages)
+                        chunks = DocumentProcessor.chunk_text(full_text)
+
+                        vector_db = VectorMongoDB("global_reports")
+                        vector_db.create_vector_index()
+
+                        for i, chunk in enumerate(chunks):
+                            doc = {
+                                "text": chunk,
+                                "metadata": {
+                                    "analysis_type": "document",
+                                    "chunk_number": i+1,
+                                    "total_chunks": len(chunks),
+                                    "source": "DocumentAgent",
+                                }
+                            }
+                            vector_db.add_documents([doc])
+
+                    except Exception as e:
+                        print(f"Error procesando documento: {str(e)}")
+                        continue
 
         if user_input:
             # Erabiltzailearen sarrera gorde

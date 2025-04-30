@@ -1,29 +1,41 @@
 import os
 import re
 import logging
+import asyncio
 from dotenv import load_dotenv
+from pathlib import Path
+from typing import List
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 from pymongo.operations import SearchIndexModel
+
 from fastembed import TextEmbedding
+from flashrank import Ranker, RerankRequest
+from llama_parse import LlamaParse
 from together import Together
 
-# Load environment variables and configure logging
+# Configuración
 load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB = os.getenv("MONGODB_DB", "data")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+RERANK_MODEL = os.getenv("RERANK_MODEL", "ms-marco-MiniLM-L-12-v2")
+LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free")
+LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
+TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
+# MongoDB client
+load_dotenv()
 _client = MongoClient(MONGODB_URI, server_api=ServerApi('1'))
 _db = _client[MONGODB_DB]
 
 class DocumentAgent:
     def __init__(self):
-        self.llm_client = Together()
-        self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-        self.embedder = TextEmbedding(model_name=EMBEDDING_MODEL)
+        self.llm_client = Together(api_key=TOGETHER_API_KEY)
+        self.model_name = LLM_MODEL
+        self.company_list = [c['name'] for c in _db.companies.find({}, {'name': 1})]
 
-    def select_final_analysis(self, filename, first_page_content, user_company_list):
+    def select_financial_entity(self, filename: str, first_page_content: str) -> str:
         prompt = f"""
         You are a document classification agent.
         Your task is to determine whether a given document belongs to any company from a list provided by the user.
@@ -41,15 +53,15 @@ class DocumentAgent:
 
         Be strict: only confirm a match if there is enough evidence (like the company name appearing, a related brand, or unique identifiers).
 
-        Format your answer like this:
+        Format your answer like this, do NOT add anything else including explanations:
 
-        Company: [Company Name]
+        Company: [Company Name or "No match found"]
 
         ----
 
         File name: {filename}
         First page content: {first_page_content}
-        User company list: {user_company_list}
+        User company list: {self.company_list}
 
         """
         messages = [{"role": "user", "content": prompt}]
@@ -69,88 +81,120 @@ class DocumentAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
+        print(f"Full response: {full_response}")
         clean_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+        print(f"Response: {clean_response}")
         match = re.search(r"Company:\s*(.+)", clean_response)
         if match:
             return match.group(1).strip()
-        return "No match found"
+        return None
 
-    def list_financial_entities(self):
-        return _db.list_collection_names()
+class DocumentProcessor:
+    @staticmethod
+    async def parse_pdf(file_path: str) -> List[str]:
+        parser = LlamaParse(
+            api_key=LLAMA_CLOUD_API_KEY,
+            parse_mode="parse_page_with_agent",
+            result_type="text"
+        )
+        pages = await parser.aload_data(file_path)
+        return [p.text for p in pages]
 
-    def connect_collection(self, collection_name: str):
-        if collection_name not in _db.list_collection_names():
-            coll = _db.create_collection(collection_name)
-            logging.info(f"Collection '{collection_name}' created.")
-        else:
-            coll = _db[collection_name]
-            logging.info(f"Collection '{collection_name}' exists.")
-        return coll
+    @staticmethod
+    def chunk_text(text: str, chunk_size: int = 1024, overlap: int = 128) -> List[str]:
+        chunks, start = [], 0
+        while start < len(text):
+            end = start + chunk_size
+            chunks.append(text[start:end])
+            start = end - overlap
+        return chunks
 
-    def create_vector_index(self, collection_name: str, index_name: str = "vector_index"):
-        coll = self.connect_collection(collection_name)
+class VectorMongoDB:
+    def __init__(self, collection_name: str):
+        self.coll = _db[collection_name]
+        self.embedder = TextEmbedding(model_name=EMBEDDING_MODEL)
+
+    def create_vector_index(self, index_name: str = "vector_index"):
         index = SearchIndexModel(
-            definition={
-                "fields": [{
-                    "type": "vector",
-                    "path": "embedding",
-                    "numDimensions": 768,
-                    "similarity": "cosine",
-                    "quantization": "scalar"
-                }]
-            },
+            definition={"fields": [{"type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine", "quantization": "scalar"}]},
             name=index_name,
             type="vectorSearch"
         )
         try:
-            coll.create_search_index(index)
-            logging.info(f"Vector index '{index_name}' created/updated on '{collection_name}'.")
+            self.coll.create_search_index(index)
+            logging.info(f"Index '{index_name}' ready on '{self.coll.name}'")
         except Exception as e:
-            logging.error(f"Failed to create/update index: {e}")
+            logging.error(f"Error creating index: {e}")
 
-    def drop_vector_index(self, collection_name: str, index_name: str = "vector_index"):
-        coll = self.connect_collection(collection_name)
+    def drop_vector_index(self, index_name: str = "vector_index"):
         try:
-            coll.drop_search_index(index_name)
-            logging.info(f"Vector index '{index_name}' dropped from '{collection_name}'.")
+            self.coll.drop_search_index(index_name)
+            logging.info(f"Dropped index '{index_name}' from '{self.coll.name}'")
         except Exception as e:
-            logging.error(f"Failed to drop index: {e}")
+            logging.error(f"Error dropping index: {e}")
 
-    def add_documents(self, collection_name: str, records: list[dict]):
-        coll = self.connect_collection(collection_name)
-        texts = [rec['text'] for rec in records]
+    def add_documents(self, chunks: List[dict], metadata: dict):  # Cambio aquí
+        texts = [chunk["text"] for chunk in chunks]
         embeddings = list(self.embedder.embed(texts))
+        
         docs = []
-        for rec, emb in zip(records, embeddings):
-            doc = {'text': rec['text'], 'embedding': emb.tolist()}
-            if 'metadata' in rec:
-                doc['metadata'] = rec['metadata']
+        for chunk, emb in zip(chunks, embeddings):
+            doc = {
+                "text": chunk["text"],
+                "embedding": emb.tolist(),
+                "metadata": {
+                    **metadata,
+                    "chunk_number": chunk["chunk_number"],
+                    "total_chunks": chunk["total_chunks"]
+                }
+            }
             docs.append(doc)
+        
         try:
-            coll.insert_many(docs)
-            logging.info(f"Inserted {len(docs)} docs into '{collection_name}'.")
+            self.coll.insert_many(docs)
+            logging.info(f"Inserted {len(docs)} docs en '{self.coll.name}'")
         except Exception as e:
-            logging.error(f"Error inserting docs: {e}")
+            logging.error(f"Error de inserción: {e}")
 
-    def semantic_search(self, collection_name: str, query: str, k: int = 10, num_candidates: int = 100):
-        coll = self.connect_collection(collection_name)
-        if 'vector_index' not in coll.list_search_indexes():
-            logging.warning("Vector index does not exist.")
-        query_emb = list(self.embedder.embed([query]))[0].tolist()
+    def semantic_search(self, query: str, k: int = 10) -> List[dict]:
+        q_emb = list(self.embedder.embed([query]))[0].tolist()
         pipeline = [
-            {'$vectorSearch': {
-                'index': 'vector_index',
-                'queryVector': query_emb,
-                'path': 'embedding',
-                'numCandidates': num_candidates,
-                'limit': k
-            }},
-            {'$project': {'text': 1, 'metadata': 1, '_id': 0}}
+            {"$vectorSearch": {"index": "vector_index", "queryVector": q_emb, "path": "embedding", "limit": k}},
+            {"$project": {"text": 1, "_id": 0}}
         ]
         try:
-            results = list(coll.aggregate(pipeline))
-            logging.info(f"Found {len(results)} results for query '{query}'.")
-            return results
+            return list(self.coll.aggregate(pipeline))
         except Exception as e:
             logging.error(f"Search error: {e}")
             return []
+
+class QAEngine:
+    def __init__(self):
+        self.client = Together(api_key=TOGETHER_API_KEY)
+
+    def generate_response(self, context: str, question: str) -> str:
+        prompt = f"""
+        Analyze the following context and answer the question:
+
+        Context:\n{context}
+        Question: {question}
+        Answer:
+        """
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full_response = ""
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
