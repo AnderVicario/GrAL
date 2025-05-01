@@ -411,7 +411,7 @@ class SearchAgent:
             )
             logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
 
-        # Búsqueda global (colección compartida como 'global_documents')
+        # Búsqueda global
         global_entity = VectorMongoDB("global_reports")
         search_results_global = global_entity.semantic_search(
             query=self.user_prompt,

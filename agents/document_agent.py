@@ -1,6 +1,6 @@
 import os
 import re
-import logging
+import logging, json, time
 import asyncio
 from dotenv import load_dotenv
 from pathlib import Path
@@ -33,7 +33,6 @@ class DocumentAgent:
     def __init__(self):
         self.llm_client = Together(api_key=TOGETHER_API_KEY)
         self.model_name = LLM_MODEL
-        self.company_list = [c['name'] for c in _db.companies.find({}, {'name': 1})]
 
     def select_financial_entity(self, filename: str, first_page_content: str) -> str:
         prompt = f"""
@@ -159,7 +158,7 @@ class VectorMongoDB:
         pipeline = [
             {
                 "$vectorSearch": {
-                    "index": "vector_index",
+                    "index": "global_reports",
                     "queryVector": q_emb,
                     "path": "embedding",
                     "limit": k,
@@ -209,3 +208,71 @@ class QAEngine:
                 content = token.choices[0].delta.content
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+    
+# def main():
+#     # Configuración de prueba
+#     TEST_COLLECTION = "global_reports"
+#     TEST_INDEX_NAME = "global_reports"
+    
+#     # 1. Inicializar la conexión
+#     vector_db = VectorMongoDB(TEST_COLLECTION)
+    
+#     try:
+#         # 2. Crear índice vectorial
+#         # print("🛠️ Creando índice vectorial...")
+#         # vector_db.create_vector_index(TEST_INDEX_NAME)
+
+#         # time.sleep(5)
+        
+#         # # 3. Insertar documentos de prueba con metadatos
+#         # test_documents = [
+#         #     {
+#         #         "text": "El cambio climático está afectando gravemente a los ecosistemas árticos",
+#         #         "metadata": {
+#         #             "source": "reporte_medioambiental_2023",
+#         #             "tema": "cambio climático",
+#         #             "pagina": 45
+#         #         }
+#         #     },
+#         #     {
+#         #         "text": "Las energías renovables representaron el 40% de la producción energética en 2024",
+#         #         "metadata": {
+#         #             "source": "informe_energético_Q2",
+#         #             "tema": "energías renovables",
+#         #             "region": "UE"
+#         #         }
+#         #     },
+#         #     {
+#         #         "text": "Nuevos avances en baterías de estado sólido para vehículos eléctricos",
+#         #         "metadata": {
+#         #             "source": "tech_report_jan",
+#         #             "tema": "tecnología automotriz",
+#         #             "empresa": "QuantumBatteries"
+#         #         }
+#         #     }
+#         # ]
+        
+#         # print("📄 Insertando documentos de prueba...")
+#         # vector_db.add_documents(test_documents)
+        
+#         # 4. Realizar búsqueda semántica
+#         query = "NVIDIA Announces Financial Results for First Quarter"
+#     #     print(f"\n🔍 Realizando búsqueda semántica para: '{query}'")
+#         results = vector_db.semantic_search(query, k=2)
+        
+#     #     # 5. Mostrar resultados con metadatos
+#         print(results)
+        
+#     #     # 6. Validación básica
+#     #     assert len(results) > 0, "Error: No se encontraron resultados"
+#     #     print("\n✅ Prueba exitosa: Se encontraron resultados relevantes")
+        
+#     # except Exception as e:
+#     #     print(f"\n❌ Error en la prueba: {str(e)}")
+#     finally:
+#     #     # 7. Limpieza
+#         print("\n🧹 Realizando limpieza...")
+#     #     # vector_db.drop_vector_index(TEST_INDEX_NAME)
+
+# if __name__ == "__main__":
+#     main()

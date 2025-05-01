@@ -84,6 +84,8 @@ def index():
                             doc = {
                                 "text": chunk,
                                 "metadata": {
+                                    "entity": selected_company,
+                                    "filename": filename,
                                     "analysis_type": "document",
                                     "chunk_number": i+1,
                                     "total_chunks": len(chunks),
