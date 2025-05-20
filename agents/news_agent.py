@@ -7,14 +7,15 @@ import re
 from together import Together
 
 class NewsAnalysisAgent:
-    def __init__(self, entity, search_terms, primary_language, date_range, 
+    def __init__(self, entity, search_terms, primary_language, start_date, end_date,
                  sector=None, country=None, advanced_mode=False, max_results=20, search_mode="scraping"):
         self.entity = entity
         self.sector = sector
         self.country = country
         self.search_terms = search_terms
         self.primary_language = primary_language
-        self.date_range = date_range
+        self.start_date = start_date
+        self.end_date   = end_date
         self.advanced_mode = advanced_mode
         self.max_results = max_results
         # search_mode: "gnews" APIa erabiltzeko edo "scraping" scraping bidez bilatzeko
@@ -25,7 +26,7 @@ class NewsAnalysisAgent:
     def process(self):
         articles = []
         queries = self._generate_queries()
-        logging.info(f"Generated queries for entity '{self.entity}': {queries} Time range: {self.date_range}")
+        logging.info(f"Generated queries for entity '{self.entity}': {queries} Time range: {self.start_date} to {self.end_date}")
         count_for_entity = 0
 
         for query in queries:
@@ -105,8 +106,8 @@ class NewsAnalysisAgent:
         try:
             query_encoded = urllib.parse.quote_plus(query)
             base_url = f"https://news.google.com/rss/search?q={query_encoded}"
-            if self.date_range:
-                base_url += f"+when:{self.date_range}"
+            if self.start_date and self.end_date:
+                base_url += f"+after:{self.start_date}+before:{self.end_date}"
             if language.lower() == "es":
                 url = base_url + "&hl=es&gl=ES&ceid=ES:es"
             else:

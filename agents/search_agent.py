@@ -3,6 +3,7 @@ import logging
 import json
 import re
 import colorlog
+import pandas as pd
 from agents.analysis_agent import AnalysisAgent
 from agents.news_agent import NewsAnalysisAgent
 from agents.etf_agent import ETFAgent
@@ -26,7 +27,9 @@ class SearchAgent:
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.user_prompt = user_prompt
         self.entities = []
-        self.current_date = datetime.now()
+        self.horizon = None
+        self.start_date = None
+        self.end_date = datetime.now() # generally, current date
         self.expiration_date = None
         self.date_range = None
 
@@ -62,7 +65,7 @@ class SearchAgent:
         - "primary_language": the primary language for news or information (can be null). Use the ISO 639-1 language code (e.g., "en" for English).
         - "search_terms": additional search terms relevant to the entity (can be null)
 
-        Assume today's date is: {self.current_date}.
+        Assume today's date is: {self.end_date}.
 
         Example:
         User Query:
@@ -122,26 +125,71 @@ class SearchAgent:
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
-    def _set_expiration_date(self):
+    def _set_dates(self):
         prompt = f"""
-        Your task is to determine the appropriate expiration date for the financial query based on its investment horizon. Carefully analyze the query and follow these strict rules:
+        You are a financial scheduling agent. Given a free-text investment query, your task is to extract:
 
-        1. If the query mentions something related with **a very short-term perspective** (e.g., "24h", "last hour", "intraday", "scalping", "high-frequency trading", "immediate action"), set the expiration date to **1 to 3 days** after today's date, depending on the urgency implied.
-        2. If the query mentions something related with **a short-term perspective** (e.g., "this week", "short term", "day trading", "quick profits"), set the expiration date to **5 to 10 days** after today's date, allowing for market fluctuations.
-        3. If the query mentions something related with **a long-term perspective** (e.g., "long term", "buy and hold", "retirement", "invest for the future"), set the expiration date to exactly **365 days** after today's date.
-        4. If the query does not specify an investment horizon, default to **30 days** after today's date.
+        1. `"horizon"`: the investment time horizon as one of:
+            - `"very_short"` → 1–3 days (e.g., "today", "intraday", "scalping", "24h")
+            - `"short"` → 4–10 days (e.g., "this week", "day trading", "quick profit")
+            - `"medium"` → 11–180 days (e.g., "next quarter", "3 months", "medium term")
+            - `"long"` → more than 180 days (e.g., "long term", "1 year", "retirement")
 
-        ### Output IMPORTANT Requirements:
-        - Return **ONLY** the expiration date.
-        - The format must be strictly `YYYY-MM-DD` (e.g., `2025-04-29`).
-        - Do **NOT** include any additional text, explanations, or new lines.
+        2. `"start_date"` and `"end_date"`:
+        - If the query explicitly mentions a specific time range (e.g., "from January 1st to April 1st"), use those dates.
+        - If the query does **not** explicitly mention a range:
+            - For `"very_short"`: use `start_date = today - 1 day`, `end_date = today`
+            - For `"short"`: use `start_date = today - 7 days`, `end_date = today`
+            - For `"medium"`: use `start_date = today - 90 days`, `end_date = today`
+            - For `"long"`: use `start_date = today - 365 days`, `end_date = today`
 
-        Assume today's date is: {self.current_date}.
+        3. `"expiration_date"`: this represents when the query becomes outdated. Infer it based on the horizon:
+            - For `"very_short"`: add 1 to 3 days in the future
+            - For `"short"`: add 5 to 10 days in the future
+            - For`"medium"`: add 30 to 60 days in the future
+            - For `"long"`: add 365 to 730 days in the future  
+        Use your best judgment depending on the wording and urgency of the query.
 
+        Assume today's date is: {self.end_date}.
+
+        ---
+
+        ### OUTPUT FORMAT
+        Return **only** a single JSON object with the keys:
+        {{
+            "horizon": "very_short" | "short" | "medium" | "long",
+            "start_date": "YYYY-MM-DD",
+            "end_date": "YYYY-MM-DD",
+            "expiration_date": "YYYY-MM-DD"
+        }}
+
+        ---
+
+        **Examples:**
+
+        - **User Query:** *"What are the trends for Apple stock in the next quarter?"*
+        - **Output:**  
+        {{
+            "horizon": "medium",
+            "start_date": "2024-11-01",
+            "end_date": "{self.end_date}",
+            "expiration_date": "2025-09-01"
+        }}
+        - **User Query:** *"What were the trends for Tesla stock in 20 February to 25 February?"*
+        - **Output:**  
+        {{
+            "horizon": "short",
+            "start_date": "2025-02-20",
+            "end_date": "2025-02-25",
+            "expiration_date": "2025-02-27"
+        }}
+
+        ---
         User Query:
         {self.user_prompt}
 
-        Expiration Date:
+        Answer:
+
         """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
@@ -160,32 +208,45 @@ class SearchAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        expiration_date_str = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
-
         try:
-            exp_date = datetime.strptime(expiration_date_str, '%Y-%m-%d')
-            exp_date = exp_date.replace(
-                hour=self.current_date.hour,
-                minute=self.current_date.minute,
-                second=self.current_date.second,
-                microsecond=self.current_date.microsecond
-            )
-            self.expiration_date = exp_date.strftime('%Y-%m-%d %H:%M:%S')
-            print(f"Fecha de expiración: {self.expiration_date}")
+            # 1) Limpia etiquetas de pensamiento
+            cleaned = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
-            # Kalkulatu tartea
-            delta_days = (exp_date - self.current_date).days
-            if delta_days < 1:
-                self.date_range = f"{(exp_date - self.current_date).seconds // 3600}h"
-            elif delta_days < 60:
-                self.date_range = f"{delta_days}d"
+            # 2) Aísla desde la primera '{'
+            idx0 = cleaned.find("{")
+            if idx0 != -1:
+                cleaned = cleaned[idx0:]
             else:
-                self.date_range = None
-            
-        except ValueError as e:
-            logging.error(f"Error parsing expiration date: {e}")
-            self.expiration_date = expiration_date_str
-            self.date_range = None
+                raise ValueError("No se encontró '{' en la respuesta.")
+
+            # 3) Usa raw_decode para extraer solo el primer objeto JSON
+            decoder = json.JSONDecoder()
+            result_json, idx_end = decoder.raw_decode(cleaned)
+
+            # 4) Valida las claves esperadas
+            required = {"horizon", "start_date", "end_date", "expiration_date"}
+            if not required.issubset(result_json.keys()):
+                raise ValueError("Faltan claves requeridas en la respuesta JSON.")
+
+        except Exception as e:
+            logging.error(f"Error al procesar la respuesta JSON: {e}")
+
+            # FALLBACK a valores por defecto
+            today = pd.to_datetime(self.end_date)
+            result_json = {
+                "horizon": "medium",
+                "start_date": (today - pd.Timedelta(days=90)).strftime("%Y-%m-%d"),
+                "end_date":   today.strftime("%Y-%m-%d"),
+                "expiration_date": (today + pd.Timedelta(days=45)).strftime("%Y-%m-%d"),
+            }
+
+        print(f"Parsed JSON: {result_json}")
+
+        # Finalmente asigna a atributos
+        self.horizon         = result_json["horizon"]
+        self.start_date      = result_json["start_date"]
+        self.end_date        = result_json["end_date"]
+        self.expiration_date = result_json["expiration_date"]
 
     def _distil_query(self, entity):
         prompt = f"""
@@ -254,7 +315,7 @@ class SearchAgent:
         return response_text
 
     def _process_entities(self):
-        self._set_expiration_date()
+        self._set_dates()
         response_text = self._identify_entities()
         logging.info(f"Respuesta del modelo: {response_text}")
         
@@ -285,19 +346,19 @@ class SearchAgent:
         self._process_entities()
         all_reports = []
         
-        # Helper para dividir texto en chunks
+        # Testua chunk-etan zatitu
         def chunk_text(text, max_chars=1500):
             chunks = []
             current_chunk = []
             current_length = 0
             
-            # Dividir por párrafos primero
+            # Parrafo bakoitza '\n\n' arabera zatitu
             paragraphs = text.split('\n\n')
             for para in paragraphs:
                 para = para.strip()
                 if not para:
                     continue
-                if current_length + len(para) + 2 <= max_chars:  # +2 por los saltos de línea
+                if current_length + len(para) + 2 <= max_chars:
                     current_chunk.append(para)
                     current_length += len(para) + 2
                 else:
@@ -306,7 +367,6 @@ class SearchAgent:
                         current_chunk = [para]
                         current_length = len(para)
                     else:
-                        # Si un párrafo individual excede el máximo
                         chunks.append(para)
                         current_chunk = []
                         current_length = 0
@@ -314,31 +374,33 @@ class SearchAgent:
                 chunks.append('\n\n'.join(current_chunk))
             return chunks
 
-        # Procesar cada entidad
+        # Entitate bakoitzaren analisia
         for entity in self.entities:
             entity.create_vector_index()
             base_metadata = {
                 "entity": entity.name,
                 "ticker": entity.ticker,
                 "entity_type": entity.entity_type,
-                "report_date": self.current_date.isoformat(),
+                "start_date": self.start_date,
+                "end_date": self.end_date,
                 "expiration_date": self.expiration_date if self.expiration_date else None
             }
 
-            # 1. Análisis de Noticias
+            # 1. Albisteen analisia
             news_agent = NewsAnalysisAgent(
                 entity=entity.name,
                 sector=entity.sector,
                 country=entity.country,
                 search_terms=entity.search_terms,
                 primary_language=entity.primary_language,
-                date_range=self.date_range,
+                start_date=self.start_date,
+                end_date=self.end_date,
                 advanced_mode=advanced_mode
             )
             news_result = news_agent.process()
             news_markdown = MarkdownAgent(user_text=news_result).generate_markdown()
             
-            # Dividir y subir chunks
+            # Zatitu eta igo chunk-ak
             news_chunks = chunk_text(news_markdown)
             for i, chunk in enumerate(news_chunks):
                 doc = {
@@ -353,17 +415,18 @@ class SearchAgent:
                 }
                 entity.add_documents([doc])
 
-            # 2. Análisis Fundamental
+            # 2. Funtsezko analisia
             fundamental_agent = FundamentalAnalysisAgent(
                 company=entity.name,
                 ticker=entity.ticker,
                 sector=entity.sector,
-                date_range=self.date_range,
+                start_date=self.start_date,
+                end_date=self.end_date
             )
             fundamental_result = fundamental_agent.process()
             fundamental_markdown = MarkdownAgent(user_text=fundamental_result).generate_markdown()
             
-            # Dividir y subir chunks
+            # Zatitu eta igo chunk-ak
             fund_chunks = chunk_text(fundamental_markdown)
             for i, chunk in enumerate(fund_chunks):
                 doc = {
@@ -378,16 +441,18 @@ class SearchAgent:
                 }
                 entity.add_documents([doc])
 
-            # 3. Análisis de ETFs
+            # 3. ETF analisia
             etf_agent = ETFAgent(
-                entity=entity.ticker,
-                etfs=["XLK", "QQQ", "SPY"],
-                start_date=
+                name=entity.name,
+                ticker=entity.ticker,
+                sector=entity.sector,
+                start_date=self.start_date,
+                end_date=self.end_date
             )
-            docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
-            entity.add_documents(docs)
+            etf_docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
+            entity.add_documents(etf_docs)
 
-            # Búsqueda Semántica optimizada
+            # Bilaketa semantiko optimizatua
             entity_results = self._handle_semantic_search(entity)
             entity_results = entity_results["entity_results"] + entity_results["global_results"]
             analysis_agent = AnalysisAgent(
@@ -407,7 +472,7 @@ class SearchAgent:
         return all_reports
     
     def _handle_semantic_search(self, entity):
-        # Búsqueda en la entidad específica
+        # Bilaketa entitate espezifikoan 
         search_results_entity = entity.semantic_search(
             query=self.user_prompt,
             k=5,
@@ -421,7 +486,7 @@ class SearchAgent:
             )
             logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
 
-        # Búsqueda global
+        # Bilaketa globala
         global_entity = VectorMongoDB("global_reports")
         search_results_global = global_entity.semantic_search(
             query=self.user_prompt,
@@ -436,11 +501,10 @@ class SearchAgent:
             )
             logging.info(f"\n🌍 Resultados globales:\n{result_str_global}")
 
-        # Limpieza
+        # Garbiketa
         entity.drop_vector_index()
         global_entity.drop_vector_index("global_reports")
 
-        # Puedes devolver ambos o combinarlos:
         return {
             "entity_results": search_results_entity,
             "global_results": search_results_global

@@ -1,55 +1,65 @@
 import yfinance as yf
 import math
 import pandas as pd
+from datetime import datetime
 
 class FundamentalAnalysisAgent:
-    def __init__(self, company, ticker, sector, date_range):
+    def __init__(
+        self,
+        company: str,
+        ticker: str,
+        sector: str,
+        start_date: str = None,
+        end_date: str = None
+    ):
         self.company = company
         self.ticker = ticker
         self.sector = sector
-        self.date_range = date_range
-        self.frequency, self.n_reports = self._parse_date_range()
 
-        self.profile_data = {}
-        self.income_statement = None
-        self.balance_sheet = None
-        self.cash_flow = None
-        
-    def _parse_date_range(self):
-        """
-        Parseatu self.date_range, ordutan ('h') edo egunetan ('d') egon behar duena,
-        eta itzuli egiten du:
-        - ≤ 30 egun -> (quarterly), 2
-        - 31-120 egun -> ("quarterly", 3)
-        - 121-364 egun -> ("quarterly", 4)
-        - 365 eta 730 egun -> ("yearly", 3)
-        - > 730 egun -> ("yearly", 5)
-        Date_range null bada edo erroreren bat gertatzen bada, balio lehenetsia itzuliko da ("yearly", 3)
-        """
-        if not self.date_range:
-            return "yearly", 3
-
+        # parse or default our dates
         try:
-            unit = self.date_range[-1].lower()  # Azken karakterea: 'h' o 'd'
-            value = float(self.date_range[:-1])
-            
-            # Bihurtu egunetara, behar izanez gero
-            days = value / 24 if unit == 'h' else value if unit == 'd' else None
-            if days is None:
-                return "yearly", 3
+            self.start_date = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+            self.end_date   = datetime.strptime(end_date,   "%Y-%m-%d") if end_date   else None
+        except ValueError:
+            # malformed dates → drop to None
+            self.start_date = None
+            self.end_date   = None
 
-            if days <= 30:
-                return "quarterly", 2
-            elif days <= 120:
-                return "quarterly", 3
-            elif days < 365:
-                return "quarterly", 4
-            elif days < 730:
-                return "yearly", 3
-            else:
-                return "yearly", 5
-        except (ValueError, TypeError):
+        # derive report frequency & how many past periods to fetch
+        self.frequency, self.n_reports = self._parse_date_span()
+
+        # containers for fetched data
+        self.profile_data    = {}
+        self.income_statement = None
+        self.balance_sheet    = None
+        self.cash_flow        = None
+
+    def _parse_date_span(self):
+        """
+        Decide frequency ('quarterly' or 'yearly') and number of past reports
+        based on the span between start_date and end_date:
+        
+        - ≤ 30 days    → quarterly, 2 periods
+        - 31-120 days  → quarterly, 3 periods
+        - 121-364 days → quarterly, 4 periods
+        - 365-730 days → yearly,    3 periods
+        - > 730 days   → yearly,    5 periods
+        
+        If either date is missing or invalid, default to yearly, 3.
+        """
+        if not self.start_date or not self.end_date:
             return "yearly", 3
+
+        span_days = (self.end_date - self.start_date).days
+        if span_days <= 30:
+            return "quarterly", 2
+        if span_days <= 120:
+            return "quarterly", 3
+        if span_days < 365:
+            return "quarterly", 4
+        if span_days < 730:
+            return "yearly", 3
+        return "yearly", 5
 
     
     def fetch_company_data(self):
@@ -173,7 +183,8 @@ class FundamentalAnalysisAgent:
         analysis_report = {
             "company_info": self.profile_data,
             "analysis_parameters": {
-                "date_range": self.date_range,
+                "start_date": self.start_date.strftime("%Y-%m-%d") if self.start_date else None,
+                "end_date": self.end_date.strftime("%Y-%m-%d") if self.end_date else None,
                 "frequency": self.frequency,
                 "reports_analyzed": self.n_reports
             },
