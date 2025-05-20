@@ -5,6 +5,7 @@ import re
 import colorlog
 from agents.analysis_agent import AnalysisAgent
 from agents.news_agent import NewsAnalysisAgent
+from agents.etf_agent import ETFAgent
 from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
 from agents.technical_agent import TechnicalAnalysisAgent
@@ -376,6 +377,15 @@ class SearchAgent:
                     }
                 }
                 entity.add_documents([doc])
+
+            # 3. Análisis de ETFs
+            etf_agent = ETFAgent(
+                entity=entity.ticker,
+                etfs=["XLK", "QQQ", "SPY"],
+                start_date=
+            )
+            docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
+            entity.add_documents(docs)
 
             # Búsqueda Semántica optimizada
             entity_results = self._handle_semantic_search(entity)
