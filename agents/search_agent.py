@@ -56,6 +56,16 @@ class SearchAgent:
         The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
         If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
 
+        # Symbol format on Yahoo Finance by asset type:
+        # - Companies / Stocks:
+        #   - US: ticker only, e.g. "AAPL" (Apple)
+        #   - Other markets: ticker + market suffix, e.g. "IBE.MC" (Iberdrola, Spain), "7203.T" (Toyota, Japan)
+        # - Stock indices: prefix "^" + code, e.g. "^GSPC" (S&P 500), "^DJI" (Dow Jones)
+        # - Forex currencies: currency pair + "=X", e.g. "EURUSD=X", "USDJPY=X"
+        # - Cryptocurrencies: crypto symbol + dash + fiat, e.g. "BTC-USD", "ETH-USD"
+        # - Commodities: symbol + "=F", e.g. "CL=F" (crude oil), "GC=F" (gold)
+        # - Funds and ETFs: generally ticker only, e.g. "SPY", "VTI"
+
         For each financial entity, return a JSON object with the following keys:
         - "name": the full name of the entity
         - "ticker": the ticker or symbol (if available prefer the most popular or representative ticker for each entity, prioritizing the primary exchange of its home country for companies, and the standard symbol for cryptocurrencies, else null)
@@ -92,7 +102,7 @@ class SearchAgent:
         }},
         {{
             "name": "Bitcoin",
-            "ticker": "BTC",
+            "ticker": "BTC-USD",
             "entity_type": "cryptocurrency",
             "sector": null,
             "country": null,

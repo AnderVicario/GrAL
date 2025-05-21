@@ -38,13 +38,22 @@ class ETFAgent:
 
     def _identify_etfs(self):
         prompt = f"""
-        You are a financial analyst assistant. Given a company or entity name, its stock ticker and sector, return a list of ETF tickers that are related to this entity. Relationships can be based on sector, industry, country of origin, or inclusion in ETF holdings.
+        You are a financial analyst assistant. Given a financial entity name, its stock ticker and sector, return a list of ETF tickers that are related to this entity. Relationships can be based on sector, industry, country of origin, or inclusion in ETF holdings.
+
+        Only return ETF tickers if you determine that using ETFs could provide a useful proxy or reference for analyzing this entity's performance. Otherwise, return an empty list.
+
+        Do not return ETFs in cases where:  
+        - the entity is private or not publicly traded (e.g., startups, NGOs),  
+        - the entity belongs to a niche or emerging sector not covered by ETFs,  
+        - the entity is a cryptocurrency or a commodity without direct ETF correlation,  
+        - the entity has idiosyncratic risks that ETFs would not capture,  
+        - or there are better analysis tools available (e.g., direct financials or peer comparables).
 
         Some example ETFs that may be relevant include:
 
         - Sector ETFs: XLF (Financials), XLY (Consumer Discretionary), XLU (Utilities), XLE (Energy), XLI (Industrials), XLC (Communications), XLK (Technology), XLRE (Real Estate), XLB (Materials), XLP (Consumer Staples), XLV (Health Care)
         - Country ETFs: SPY (USA), EWG (Germany), KSA (Saudi Arabia), EWA (Australia), EWZ (Brazil), EWC (Canada), FXI (China), EWY (South Korea), EWP (Spain), EWQ (France), INDA (India), EWI (Italy), EWJ (Japan), EWW (Mexico), EWU (UK), EWS (Singapore), EWL (Switzerland), EWT (Taiwan), TUR (Turkey)
-        - Asset type ETFs: GLD (Gold), CWB (Convertible Bonds), PFF (Preferred Shares), HYG (High Yield Bonds), EEM (Emerging Markets), EFA (Developed Markets ex-North America), TIP (Treasury Inflation-Protected Securities), LQD (Investment Grade Bonds), DBC (Commodities), TLT (Long-Term Treasuries)
+        - Entity type ETFs: GLD (Gold), CWB (Convertible Bonds), PFF (Preferred Shares), HYG (High Yield Bonds), EEM (Emerging Markets), EFA (Developed Markets ex-North America), TIP (Treasury Inflation-Protected Securities), LQD (Investment Grade Bonds), DBC (Commodities), TLT (Long-Term Treasuries)
 
         Please return a list of ETF tickers that are relevant to the given entity. You may use any of the above ETFs if applicable, but also include others that are appropriate.
 
@@ -55,7 +64,7 @@ class ETFAgent:
 
         Output format:
         A plain list of ETF tickers (e.g., SPY, QQQ, XLF). Do not include any explanations, descriptions, or additional text—just the ticker symbols.
-                """
+        """
         messages = [{"role": "user", "content": prompt}]
         response = self.llm_client.chat.completions.create(
             model=self.model_name,
@@ -77,7 +86,6 @@ class ETFAgent:
         tickers = re.split(r"[,\n]", cleaned)
         tickers = [t.strip().upper() for t in tickers if t.strip()]
 
-        return tickers
 
     def fetch_data(self):
         # Finantza-datuak deskargatu (prezioak eta bolumenak)
@@ -132,7 +140,7 @@ class ETFAgent:
     def compare_volume(self):
         # Bolumenaren batezbesteko mugikorra eta ZScore kalkulatu
         if self.data is None:
-            raise ValueError("fetch_data() erabili compare_volume() baino lehen.")
+            raise ValueError("No data. Use fetch_data() first.")
         window = 5 if self.term=='short' else 20 if self.term=='medium' else 60
         vol = self.data['Volume']
         ma = vol.rolling(window).mean()
@@ -142,7 +150,7 @@ class ETFAgent:
     def compute_residual(self):
         # Entitatearen eta ETF-en arteko errestoak kalkulatu
         if self.normalized is None:
-            raise ValueError("normalize_prices() erabili compute_residual() baino lehen.")
+            raise ValueError("No data. Use normalize_prices() first.")
         norm = self.normalized.dropna()
         emp = norm[self.ticker]
         etfs = norm[self.etfs]
@@ -153,7 +161,7 @@ class ETFAgent:
     def detect_crossovers(self):
         # Errendimenduen arteko gurutzaketak detektatu
         if self.normalized is None:
-            raise ValueError("normalize_prices() erabili detect_crossovers() baino lehen.")
+            raise ValueError("No data. Use normalize_prices() first.")
         df = self.normalized.dropna()
         if self.term=='short': df = df.tail(30)
         elif self.term=='medium': df = df.tail(180)
@@ -167,9 +175,8 @@ class ETFAgent:
         return pd.DataFrame(rows)
 
     def regression_analysis(self):
-        # Erregresio linealaren bidez entitatea~ETF erlazioa aztertu
         if self.data is None:
-            raise ValueError("fetch_data() erabili regression_analysis() baino lehen.")
+            raise ValueError("No data. Use fetch_data() first.")
         ret = self.data['Close'].pct_change().dropna()
         if self.term=='short': ret = ret.tail(30)
         elif self.term=='medium': ret = ret.tail(180)
@@ -177,10 +184,10 @@ class ETFAgent:
         m=LinearRegression().fit(X,y); pred=m.predict(X)
         resid=y-pred
         return {
-            'coefficients':dict(zip(self.etfs, m.coef_)),
-            'intercept':float(m.intercept_),
-            'r2':float(m.score(X,y)),
-            'residuals_summary':resid.describe().to_dict()
+            'coefficients': dict(zip(self.etfs, m.coef_)),
+            'intercept': float(m.intercept_),
+            'r2': float(m.score(X,y)),
+            'residuals_summary': resid.describe().to_dict()
         }
 
     def to_json(self, obj):
@@ -245,7 +252,7 @@ class ETFAgent:
 #         'report_date': pd.Timestamp.today().isoformat(),
 #         'expiration_date': None
 #     }
-#     # Instantzitu eta exekutatu
+#     # Instantziatu eta exekutatu
 #     agent = ETFAgent(name='Apple', ticker='AAPL', sector='technology', start_date='2025-03-01', end_date='2025-05-19')
 #     chunks = agent.run_and_chunk(base_metadata=base_metadata, max_chars=1000)
 #     print(chunks)
