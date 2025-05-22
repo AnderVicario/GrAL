@@ -5,6 +5,8 @@ from gnews import GNews
 import logging
 import re
 from together import Together
+import json
+from textwrap import wrap
 
 class NewsAnalysisAgent:
     def __init__(self, entity, search_terms, primary_language, start_date, end_date,
@@ -23,7 +25,7 @@ class NewsAnalysisAgent:
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
-    def process(self):
+    def process_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
         articles = []
         queries = self._generate_queries()
         logging.info(f"Generated queries for entity '{self.entity}': {queries} Time range: {self.start_date} to {self.end_date}")
@@ -51,7 +53,41 @@ class NewsAnalysisAgent:
                 articles.append(art)
                 count_for_entity += 1
 
-        return self._sentiment_analysis(self._remove_duplicates(articles)) 
+        articles = self._remove_duplicates(articles)
+
+        # HEADLINES CHUNKS
+        serialized = json.dumps(articles, ensure_ascii=False, indent=2)
+        headline_chunks = wrap(serialized, max_chars, break_long_words=False, break_on_hyphens=False)
+        total_headline_chunks = len(headline_chunks)
+
+        headline_outputs = [
+            {
+                "text": chunk,
+                "metadata": {
+                    **base_metadata,
+                    "analysis_type": "news_headlines",
+                    "chunk_number": i + 1,
+                    "total_chunks": total_headline_chunks,
+                    "source": "NewsAgent",
+                }
+            }
+            for i, chunk in enumerate(headline_chunks)
+        ]
+
+        # SENTIMENT ANALYSIS CHUNK
+        sentiment_result = self._sentiment_analysis(articles)
+        sentiment_output = {
+            "text": sentiment_result,
+            "metadata": {
+                **base_metadata,
+                "analysis_type": "news_sentiment_analysis",
+                "chunk_number": 1,
+                "total_chunks": 1,
+                "source": "NewsAgent",
+            }
+        }
+
+        return headline_outputs + [sentiment_output]
 
     def _generate_queries(self):
         queries = [self.entity]
@@ -151,11 +187,13 @@ class NewsAnalysisAgent:
         prompt = f"""
         Your task is to analyze the sentiment of a series of financial news headlines. You will receive multiple headlines and must perform a sentiment analysis for each one according to these strict rules:
 
-        1. For each headline, determine if the sentiment is **positive**, **neutral**, or **negative**.
+        1. For each headline, determine if the sentiment is **positive**, **neutral**, or **negative**. Classify the sentiment **only if it affects the entity mentioned by the user**.
         2. If a headline mistakenly mentions another company or deviates from the financial topic for any reason, classify it as **neutral**.
         
         ## OUTPUT REQUIREMENTS: At the end, count and output ONLY the total number of positive, neutral, and negative headlines in the following format: "Positives: X, Neutrals: Y, Negatives: Z". Do NOT include any additional text, explanations, or extra new lines in your output. Ensure that the output is provided exactly once without any repetition.
 
+        User Entity:
+        {self.entity}
         User Headlines:
         {headlines}
 

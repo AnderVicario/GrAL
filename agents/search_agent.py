@@ -407,23 +407,8 @@ class SearchAgent:
                 end_date=self.end_date,
                 advanced_mode=advanced_mode
             )
-            news_result = news_agent.process()
-            news_markdown = MarkdownAgent(user_text=news_result).generate_markdown()
-            
-            # Zatitu eta igo chunk-ak
-            news_chunks = chunk_text(news_markdown)
-            for i, chunk in enumerate(news_chunks):
-                doc = {
-                    "text": chunk,
-                    "metadata": {
-                        **base_metadata,
-                        "analysis_type": "news",
-                        "chunk_number": i+1,
-                        "total_chunks": len(news_chunks),
-                        "source": "NewsAnalysisAgent"
-                    }
-                }
-                entity.add_documents([doc])
+            news_docs = news_agent.process_and_chunk(base_metadata=base_metadata)
+            entity.add_documents(news_docs)
 
             # 2. Funtsezko analisia
             fundamental_agent = FundamentalAnalysisAgent(
