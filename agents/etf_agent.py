@@ -5,6 +5,7 @@ import json
 import re
 from sklearn.linear_model import LinearRegression
 from together import Together
+from datetime import timedelta
 
 
 class ETFAgent:
@@ -27,9 +28,9 @@ class ETFAgent:
         self.name = name
         self.ticker = ticker
         self.sector = sector
-        self.etfs = self._identify_etfs()
+        self.etfs = self._identify_etfs() + ['PUNK']
+        self.etfs = [t for t in self.etfs if self.is_valid_ticker(t)]
         self.tickers = [ticker] + self.etfs
-        self.tickers = [t for t in self.tickers if self.is_valid_ticker(t)]
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date) if end_date else pd.Timestamp.today()
         self.data = None
@@ -94,8 +95,11 @@ class ETFAgent:
         tickers = [t.strip().upper() for t in tickers if t.strip()]
         return tickers
 
-    def fetch_data(self):
-        # Finantza-datuak deskargatu (prezioak eta bolumenak)
+    def fetch_data(self, min_days: int = 30):
+        if self.term == 'short':
+            self.start_date = self.end_date - timedelta(days=min_days)
+
+        # Descargar los datos
         df = yf.download(
             tickers=self.tickers,
             start=self.start_date.strftime('%Y-%m-%d'),
@@ -103,13 +107,28 @@ class ETFAgent:
             auto_adjust=True,
             progress=False
         )
-        self.data = pd.concat({'Close': df['Close'], 'Volume': df['Volume']}, axis=1)
-        return self.data
+
+        # Crear DataFrame con Close y Volume
+        data = pd.concat({'Close': df['Close'], 'Volume': df['Volume']}, axis=1)
+
+        # Detectar y eliminar columnas que son completamente NaN
+        invalid_cols = data.columns[data.isna().all()].tolist()
+        if invalid_cols:
+            data = data.drop(columns=invalid_cols)
+            invalid_tickers = [col[1] for col in invalid_cols if len(col) > 1]  # Extraer ticker del MultiIndex
+            if invalid_tickers:
+                for ticker in invalid_tickers:
+                    if ticker in self.etfs:
+                        self.etfs.remove(ticker)
+                    if ticker in self.tickers:
+                        self.tickers.remove(ticker)
+
+        self.data = data
 
     def normalize_prices(self):
         # Prezioak normalizatu lehen balio erabilgarriarekin oinarrituta
         if self.data is None:
-            raise ValueError("fetch_data() erabili normalize_prices() baino lehen.")
+            raise ValueError("No data. Use fetch_data() first.")
 
         close = self.data['Close']
 
@@ -123,8 +142,8 @@ class ETFAgent:
     def compute_correlation(self):
         # Errendimenduen arteko korrelazioa kalkulatu
         if self.data is None:
-            raise ValueError("fetch_data() erabili compute_correlation() baino lehen.")
-        returns = self.data['Close'].fillna(method='ffill').pct_change().dropna()
+            raise ValueError("No data. Use fetch_data() first.")
+        returns = self.data['Close'].ffill().pct_change().dropna()
         if self.term == 'short':
             returns = returns.tail(30)
         elif self.term == 'medium':
@@ -141,7 +160,7 @@ class ETFAgent:
         Eskuragarri dauden datuak baino gehiago eskatzen bada, historiko osoa erabiliko da.
         """
         if self.data is None:
-            raise ValueError("fetch_data() erabili compute_momentum() baino lehen.")
+            raise ValueError("No data. Use fetch_data() first.")
 
         close = self.data['Close']
         desired_days = 30 if self.term == 'short' else 180 if self.term == 'medium' else (
@@ -150,7 +169,7 @@ class ETFAgent:
         window = min(desired_days, available_days)
 
         if window <= 0:
-            raise ValueError("Ez dago nahikoa datu momentum kalkulatzeko.")
+            return pd.Series({t: np.nan for t in self.tickers}, name="momentum")
 
         # Azken 'window + 1' egunak hartu
         data_window = close.iloc[-(window + 1):]
@@ -164,7 +183,6 @@ class ETFAgent:
         momentum = ((end_price - start_price) / start_price * 100).where(start_price.notna() & end_price.notna())
 
         return momentum
-
 
     def compare_volume(self):
         if self.data is None:
@@ -222,7 +240,7 @@ class ETFAgent:
     def regression_analysis(self):
         if self.data is None:
             raise ValueError("No data. Use fetch_data() first.")
-        ret = self.data['Close'].fillna(method='ffill').pct_change().dropna()
+        ret = self.data['Close'].ffill().pct_change().dropna()
         if self.term == 'short':
             ret = ret.tail(30)
         elif self.term == 'medium':
@@ -296,21 +314,20 @@ class ETFAgent:
                     chunks.append({'text': part, 'metadata': meta})
         return chunks
 
+if __name__ == '__main__':
+    # Adibideko parametroak
+    from dotenv import load_dotenv
+    load_dotenv()
+    base_metadata = {
+        'entity': 'Apple',
+        'ticker': 'AAPL',
+        'entity_type': 'stock',
+        'report_date': pd.Timestamp.today().isoformat(),
+        'expiration_date': None
+    }
+    # Instantziatu eta exekutatu
+    # agent = ETFAgent(name='EURO', ticker='EURUSD=X', sector='currency', start_date='2025-03-01', end_date='2025-05-19')
+    agent = ETFAgent(name='Bitcoin', ticker='BTC-USD', sector='crypto', start_date='2025-05-17', end_date='2025-05-19')
 
-# if __name__ == '__main__':
-#     # Adibideko parametroak
-#     from dotenv import load_dotenv
-#     load_dotenv()
-#     base_metadata = {
-#         'entity': 'Apple',
-#         'ticker': 'AAPL',
-#         'entity_type': 'stock',
-#         'report_date': pd.Timestamp.today().isoformat(),
-#         'expiration_date': None
-#     }
-#     # Instantziatu eta exekutatu
-#     agent = ETFAgent(name='EURO', ticker='EURUSD=X', sector='currency', start_date='2025-03-01', end_date='2025-05-19')
-#     # agent = ETFAgent(name='BTC', ticker='BTC-USD', sector='crypto', start_date='2025-03-01', end_date='2025-05-19')
-#
-#     chunks = agent.run_and_chunk(base_metadata=base_metadata, max_chars=1000)
-#     print(chunks)
+    chunks = agent.run_and_chunk(base_metadata=base_metadata, max_chars=1000)
+    print(chunks)
