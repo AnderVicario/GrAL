@@ -4,3 +4,4 @@ db/
 .env
 __pycache__/
 flask_session/
+.idea/
