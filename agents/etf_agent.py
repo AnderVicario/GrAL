@@ -1,11 +1,12 @@
-import yfinance as yf
-import pandas as pd
-import numpy as np
 import json
 import re
+from datetime import timedelta
+
+import numpy as np
+import pandas as pd
+import yfinance as yf
 from sklearn.linear_model import LinearRegression
 from together import Together
-from datetime import timedelta
 
 
 class ETFAgent:
@@ -314,20 +315,20 @@ class ETFAgent:
                     chunks.append({'text': part, 'metadata': meta})
         return chunks
 
-if __name__ == '__main__':
-    # Adibideko parametroak
-    from dotenv import load_dotenv
-    load_dotenv()
-    base_metadata = {
-        'entity': 'Apple',
-        'ticker': 'AAPL',
-        'entity_type': 'stock',
-        'report_date': pd.Timestamp.today().isoformat(),
-        'expiration_date': None
-    }
-    # Instantziatu eta exekutatu
-    # agent = ETFAgent(name='EURO', ticker='EURUSD=X', sector='currency', start_date='2025-03-01', end_date='2025-05-19')
-    agent = ETFAgent(name='Bitcoin', ticker='BTC-USD', sector='crypto', start_date='2025-05-17', end_date='2025-05-19')
-
-    chunks = agent.run_and_chunk(base_metadata=base_metadata, max_chars=1000)
-    print(chunks)
+# if __name__ == '__main__':
+#     # Adibideko parametroak
+#     from dotenv import load_dotenv
+#     load_dotenv()
+#     base_metadata = {
+#         'entity': 'Apple',
+#         'ticker': 'AAPL',
+#         'entity_type': 'stock',
+#         'report_date': pd.Timestamp.today().isoformat(),
+#         'expiration_date': None
+#     }
+#     # Instantziatu eta exekutatu
+#     # agent = ETFAgent(name='EURO', ticker='EURUSD=X', sector='currency', start_date='2025-03-01', end_date='2025-05-19')
+#     agent = ETFAgent(name='Bitcoin', ticker='BTC-USD', sector='crypto', start_date='2025-05-17', end_date='2025-05-19')
+#
+#     chunks = agent.run_and_chunk(base_metadata=base_metadata, max_chars=1000)
+#     print(chunks)

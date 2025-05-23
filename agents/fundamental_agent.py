@@ -1,7 +1,9 @@
-import yfinance as yf
 import math
-import pandas as pd
 from datetime import datetime
+
+import pandas as pd
+import yfinance as yf
+
 
 class FundamentalAnalysisAgent:
     def __init__(

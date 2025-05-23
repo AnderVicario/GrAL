@@ -1,11 +1,16 @@
+import asyncio
+import glob
+import json
+import os
+
 from flask import Flask, render_template, request, redirect, url_for, session
-from flask_session import Session
 from markdown import markdown
-import os, json, glob, asyncio
 from werkzeug.utils import secure_filename
-from utils import allowed_file
-from main import main
+
 from agents.document_agent import DocumentAgent, DocumentProcessor, VectorMongoDB
+from flask_session import Session
+from main import main
+from utils import allowed_file
 
 # Oinarrizko flask konfigurazioa
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'web', 'templates'))

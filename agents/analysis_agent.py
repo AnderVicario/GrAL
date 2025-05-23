@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
+
 from together import Together
+
 
 class AnalysisAgent:
     def __init__(self, user_prompt, date_range, context=None):

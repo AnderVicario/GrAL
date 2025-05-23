@@ -1,9 +1,9 @@
-import logging
 import re
-import colorlog
 from datetime import datetime
+
 from dotenv import load_dotenv
 from together import Together
+
 
 class MarkdownAgent:
     def __init__(self, user_text):

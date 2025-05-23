@@ -1,21 +1,22 @@
 import datetime
-import logging
 import json
+import logging
 import re
+from datetime import datetime
+
 import colorlog
 import pandas as pd
+from dotenv import load_dotenv
+from together import Together
+
 from agents.analysis_agent import AnalysisAgent
-from agents.news_agent import NewsAnalysisAgent
 from agents.etf_agent import ETFAgent
 from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
-from agents.technical_agent import TechnicalAnalysisAgent
+from agents.news_agent import NewsAnalysisAgent
 from agents.writing_agent import MarkdownAgent
 from agents.document_agent import VectorMongoDB
 from entities.financial_entity import FinancialEntity
-from dotenv import load_dotenv
-from datetime import datetime
-from together import Together
 
 
 class SearchAgent:
@@ -29,7 +30,7 @@ class SearchAgent:
         self.entities = []
         self.horizon = None
         self.start_date = None
-        self.end_date = datetime.now() # generally, current date
+        self.end_date = datetime.now()  # generally, current date
         self.expiration_date = None
         self.date_range = None
 
@@ -246,16 +247,16 @@ class SearchAgent:
             result_json = {
                 "horizon": "medium",
                 "start_date": (today - pd.Timedelta(days=90)).strftime("%Y-%m-%d"),
-                "end_date":   today.strftime("%Y-%m-%d"),
+                "end_date": today.strftime("%Y-%m-%d"),
                 "expiration_date": (today + pd.Timedelta(days=45)).strftime("%Y-%m-%d"),
             }
 
         print(f"Parsed JSON: {result_json}")
 
         # Finalmente asigna a atributos
-        self.horizon         = result_json["horizon"]
-        self.start_date      = result_json["start_date"]
-        self.end_date        = result_json["end_date"]
+        self.horizon = result_json["horizon"]
+        self.start_date = result_json["start_date"]
+        self.end_date = result_json["end_date"]
         self.expiration_date = result_json["expiration_date"]
 
     def _distil_query(self, entity):
@@ -328,7 +329,7 @@ class SearchAgent:
         self._set_dates()
         response_text = self._identify_entities()
         logging.info(f"Respuesta del modelo: {response_text}")
-        
+
         json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
         if json_match:
             json_text = json_match.group(0)
@@ -355,13 +356,13 @@ class SearchAgent:
     def process_all(self, advanced_mode=False):
         self._process_entities()
         all_reports = []
-        
+
         # Testua chunk-etan zatitu
         def chunk_text(text, max_chars=1500):
             chunks = []
             current_chunk = []
             current_length = 0
-            
+
             # Parrafo bakoitza '\n\n' arabera zatitu
             paragraphs = text.split('\n\n')
             for para in paragraphs:
@@ -420,7 +421,7 @@ class SearchAgent:
             )
             fundamental_result = fundamental_agent.process()
             fundamental_markdown = MarkdownAgent(user_text=fundamental_result).generate_markdown()
-            
+
             # Zatitu eta igo chunk-ak
             fund_chunks = chunk_text(fundamental_markdown)
             for i, chunk in enumerate(fund_chunks):
@@ -429,7 +430,7 @@ class SearchAgent:
                     "metadata": {
                         **base_metadata,
                         "analysis_type": "fundamental",
-                        "chunk_number": i+1,
+                        "chunk_number": i + 1,
                         "total_chunks": len(fund_chunks),
                         "source": "FundamentalAnalysisAgent"
                     }
@@ -465,7 +466,7 @@ class SearchAgent:
             })
 
         return all_reports
-    
+
     def _handle_semantic_search(self, entity):
         # Bilaketa entitate espezifikoan 
         search_results_entity = entity.semantic_search(
@@ -476,7 +477,7 @@ class SearchAgent:
 
         if search_results_entity:
             result_str_entity = "\n".join(
-                f"{i+1}. {res['text'][:150]}..." 
+                f"{i + 1}. {res['text'][:150]}..."
                 for i, res in enumerate(search_results_entity)
             )
             logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
@@ -491,7 +492,7 @@ class SearchAgent:
 
         if search_results_global:
             result_str_global = "\n".join(
-                f"{i+1}. {res['text'][:150]}..." 
+                f"{i + 1}. {res['text'][:150]}..."
                 for i, res in enumerate(search_results_global)
             )
             logging.info(f"\n🌍 Resultados globales:\n{result_str_global}")

@@ -1,17 +1,14 @@
+import logging
 import os
 import re
-import logging, json, time
-import asyncio
-from dotenv import load_dotenv
-from pathlib import Path
 from typing import List
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
-from pymongo.operations import SearchIndexModel
 
+from dotenv import load_dotenv
 from fastembed import TextEmbedding
-from flashrank import Ranker, RerankRequest
 from llama_parse import LlamaParse
+from pymongo import MongoClient
+from pymongo.operations import SearchIndexModel
+from pymongo.server_api import ServerApi
 from together import Together
 
 # Configuración

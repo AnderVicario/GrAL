@@ -1,12 +1,13 @@
-import requests
-from bs4 import BeautifulSoup
-import urllib.parse
-from gnews import GNews
+import json
 import logging
 import re
+import urllib.parse
+
+import requests
+from bs4 import BeautifulSoup
+from gnews import GNews
 from together import Together
-import json
-from textwrap import wrap
+
 
 class NewsAnalysisAgent:
     def __init__(self, entity, search_terms, primary_language, start_date, end_date,
@@ -55,10 +56,19 @@ class NewsAnalysisAgent:
 
         articles = self._remove_duplicates(articles)
 
-        # HEADLINES CHUNKS
-        serialized = json.dumps(articles, ensure_ascii=False, indent=2)
-        headline_chunks = wrap(serialized, max_chars, break_long_words=False, break_on_hyphens=False)
-        total_headline_chunks = len(headline_chunks)
+        # HEADLINES CHUNKS - Optimized JSON chunking
+        chunks, current_chunk, current_size = [], [], 2
+        for article in articles:
+            article_size = len(json.dumps(article, ensure_ascii=False))
+            if current_size + article_size > max_chars and current_chunk:
+                chunks.append(json.dumps(current_chunk, ensure_ascii=False, indent=2))
+                current_chunk, current_size = [article], 2 + article_size
+            else:
+                current_chunk.append(article)
+                current_size += article_size + (1 if len(current_chunk) > 1 else 0)
+
+        if current_chunk:
+            chunks.append(json.dumps(current_chunk, ensure_ascii=False, indent=2))
 
         headline_outputs = [
             {
@@ -67,11 +77,11 @@ class NewsAnalysisAgent:
                     **base_metadata,
                     "analysis_type": "news_headlines",
                     "chunk_number": i + 1,
-                    "total_chunks": total_headline_chunks,
+                    "total_chunks": len(chunks),
                     "source": "NewsAgent",
                 }
             }
-            for i, chunk in enumerate(headline_chunks)
+            for i, chunk in enumerate(chunks)
         ]
 
         # SENTIMENT ANALYSIS CHUNK

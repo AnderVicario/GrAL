@@ -1,11 +1,12 @@
+import logging
 import os
 import re
-import logging
+
 from dotenv import load_dotenv
-from pymongo import MongoClient
-from pymongo.server_api import ServerApi
-from pymongo.operations import SearchIndexModel
 from fastembed import TextEmbedding
+from pymongo import MongoClient
+from pymongo.operations import SearchIndexModel
+from pymongo.server_api import ServerApi
 
 # Oinarrizko konfigurazioa kargatu
 load_dotenv()
@@ -15,6 +16,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
 
 _client = MongoClient(MONGODB_URI, server_api=ServerApi('1'))
 _db = _client[MONGODB_DB]
+
 
 class FinancialEntity:
     def __init__(self, name, ticker, entity_type, sector=None, country=None, primary_language=None, search_terms=None):
@@ -44,7 +46,6 @@ class FinancialEntity:
 
     def __str__(self):
         return f"{self.entity_type.title()}: {self.name} ({self.ticker})"
-
 
     def create_vector_index(self):
         """Bektore-indizea bilduman sortu"""
@@ -104,7 +105,7 @@ class FinancialEntity:
             logging.warning("Vector index does not exist.")
 
         query_embedding = list(self.embedder.embed([query]))[0].tolist()
-        
+
         pipeline = [
             {
                 '$vectorSearch': {
