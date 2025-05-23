@@ -1,10 +1,10 @@
-from typing import List
-
 import requests
 from bs4 import BeautifulSoup
 import country_converter as coco
 import os
 import json
+from together import Together
+import re
 
 
 class MacroeconomicAnalysisAgent:
@@ -30,6 +30,47 @@ class MacroeconomicAnalysisAgent:
         self.country = country
         self.start_date = start_date
         self.end_date = end_date
+        self.llm_client = Together()
+        self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+
+    def identify_entities(self):
+        prompt = f"""
+        You are a financial analyst specialized in macroeconomic analysis.
+        Your task is to evaluate the general economic context and its potential impact on a specific entity.
+        
+        Entity: {self.name}, {self.ticker}
+        Sector: {self.sector}
+        Primary region of operations: {self.country}
+        
+        Current macroeconomic indicators for the country:
+        {self.fetch_country_data()}
+        
+        Task:
+        Based solely on the macroeconomic data provided:
+        - Assess whether the current macroeconomic environment is favorable, neutral, or adverse for the company.
+        - Justify your assessment based on the indicators.
+        - If possible, identify potential risks and opportunities that could arise in the short to medium term for the company.
+    
+        Be specific and technical, as a professional financial economist would. Use clear, structured language in your response.
+        """
+        messages = [{"role": "user", "content": prompt}]
+        response = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full_response = ""
+        for token in response:
+            if hasattr(token, 'choices'):
+                content = token.choices[0].delta.content
+                full_response += content
+        return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
     def process(self):
         return {
@@ -207,5 +248,5 @@ if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
 
-    agent = MacroeconomicAnalysisAgent("Apple", "AAPL", "technology", "Spain")
-    print(agent.fetch_country_data())
+    agent = MacroeconomicAnalysisAgent("Apple", "AAPL", "technology", "USA")
+    print(agent.identify_entities())

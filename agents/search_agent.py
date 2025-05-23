@@ -19,10 +19,28 @@ from agents.document_agent import VectorMongoDB
 from entities.financial_entity import FinancialEntity
 
 
+def _configure_logging():
+    logger = colorlog.getLogger()
+    if not logger.handlers:
+        handler = colorlog.StreamHandler()
+        handler.setFormatter(colorlog.ColoredFormatter(
+            "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
+            log_colors={
+                'DEBUG': 'cyan',
+                'INFO': 'green',
+                'WARNING': 'yellow',
+                'ERROR': 'red',
+                'CRITICAL': 'red,bg_white',
+            }
+        ))
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+
+
 class SearchAgent:
     def __init__(self, user_prompt):
         load_dotenv()
-        self._configure_logging()
+        _configure_logging()
 
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
@@ -33,23 +51,6 @@ class SearchAgent:
         self.end_date = datetime.now()  # generally, current date
         self.expiration_date = None
         self.date_range = None
-
-    def _configure_logging(self):
-        logger = colorlog.getLogger()
-        if not logger.handlers:
-            handler = colorlog.StreamHandler()
-            handler.setFormatter(colorlog.ColoredFormatter(
-                "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
-                log_colors={
-                    'DEBUG': 'cyan',
-                    'INFO': 'green',
-                    'WARNING': 'yellow',
-                    'ERROR': 'red',
-                    'CRITICAL': 'red,bg_white',
-                }
-            ))
-            logger.setLevel(logging.INFO)
-            logger.addHandler(handler)
 
     def _identify_entities(self):
         prompt = f"""
