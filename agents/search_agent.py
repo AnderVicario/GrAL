@@ -73,7 +73,7 @@ class SearchAgent:
         - "ticker": the ticker or symbol (if available prefer the most popular or representative ticker for each entity, prioritizing the primary exchange of its home country for companies, and the standard symbol for cryptocurrencies, else null)
         - "entity_type": type of the entity (e.g., company, cryptocurrency, fund, ETF, etc.)
         - "sector": if applicable (can be null)
-        - "country": if applicable (can be null)
+        - "country": if applicable (can be null). Indicates the country associated with the asset, whether by origin, economic representation, or explicit mention in the user query.
         - "primary_language": the primary language for news or information (can be null). Use the ISO 639-1 language code (e.g., "en" for English).
         - "search_terms": additional search terms relevant to the entity (can be null)
 
@@ -448,6 +448,19 @@ class SearchAgent:
             )
             etf_docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
             entity.add_documents(etf_docs)
+
+            # 4. Makro analisia
+            macro_agent = MacroeconomicAnalysisAgent(
+                name=entity.name,
+                ticker=entity.ticker,
+                sector=entity.sector,
+                country=entity.country,
+                start_date=self.start_date,
+                end_date=self.end_date
+            )
+            macro_docs = macro_agent.process_and_chunk(base_metadata=base_metadata)
+            if macro_docs:
+                entity.add_documents(macro_docs)
 
             # Bilaketa semantiko optimizatua
             entity_results = self._handle_semantic_search(entity)

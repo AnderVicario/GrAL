@@ -5,6 +5,7 @@ import os
 import json
 from together import Together
 import re
+from pathlib import Path
 
 
 class MacroeconomicAnalysisAgent:
@@ -23,6 +24,9 @@ class MacroeconomicAnalysisAgent:
 
     INFLUENCED_BY_INDIA = {"NP", "BT", "LK", "MV", "BD", "MU", "FJ"}
 
+    BASE_DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
+    BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
     def __init__(self, name: str, ticker: str, sector: str, country: str, start_date: str = None, end_date: str = None):
         self.name = name
         self.ticker = ticker
@@ -33,7 +37,7 @@ class MacroeconomicAnalysisAgent:
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
-    def identify_entities(self):
+    def _macro_analysis(self, data_to_analize):
         prompt = f"""
         You are a financial analyst specialized in macroeconomic analysis.
         Your task is to evaluate the general economic context and its potential impact on a specific entity.
@@ -43,7 +47,7 @@ class MacroeconomicAnalysisAgent:
         Primary region of operations: {self.country}
         
         Current macroeconomic indicators for the country:
-        {self.fetch_country_data()}
+        {data_to_analize}
         
         Task:
         Based solely on the macroeconomic data provided:
@@ -72,29 +76,94 @@ class MacroeconomicAnalysisAgent:
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
-    def process(self):
-        return {
-            "report_type": "MacroeconomicAnalysis",
-            "sector": self.sector,
-            "country": self.country,
-            "economic_indicators": {
-                "inflacion": "2%",
-                "PIB": "3%",
-                "tasas_interes": "1.5%"
-            }
-        }
+    def process_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
+        """
+        Fetches country macro data and Together AI analysis, then returns both in JSON-chunked outputs
+        using natural line-boundary splitting.
+        """
+        outputs = []
+
+        if self.country is None:
+            return outputs
+
+        # 1. Fetch and serialize raw macroeconomic data
+        raw_payload = self.fetch_country_data()
+        raw_pretty = json.dumps(raw_payload, ensure_ascii=False, indent=4)
+
+        # 2. Analyze with Together AI and serialize
+        analysis_text = self._macro_analysis(raw_payload)
+
+        def chunk_text(text: str) -> list:
+            """Chunk plain text by sentence or paragraph boundaries."""
+            sentences = re.split(r'(?<=[.!?])\s+', text)  # Divide por frases
+            chunks = []
+            current = ""
+            for sentence in sentences:
+                if len(current) + len(sentence) + 1 > max_chars and current:
+                    chunks.append(current.strip())
+                    current = sentence
+                else:
+                    current += " " + sentence if current else sentence
+            if current:
+                chunks.append(current.strip())
+            return chunks
+
+        def chunk_pretty(pretty_str):
+            """Chunk a pretty-printed JSON string at line boundaries."""
+            lines = pretty_str.splitlines(keepends=True)
+            chunks = []
+            current = ""
+            for line in lines:
+                if len(current) + len(line) > max_chars and current:
+                    chunks.append(current)
+                    current = line
+                else:
+                    current += line
+            if current:
+                chunks.append(current)
+            return chunks
+
+        # Generate chunks for each payload
+        raw_chunks = chunk_pretty(raw_pretty)
+        analysis_chunks = chunk_text(analysis_text)
+
+        # Wrap each chunk with metadata and return
+        for i, chunk in enumerate(raw_chunks, 1):
+            outputs.append({
+                "text": chunk,
+                "metadata": {
+                    **base_metadata,
+                    "analysis_type": "raw_country_data",
+                    "chunk_number": i,
+                    "total_chunks": len(raw_chunks),
+                    "source": "MacroeconomicAnalysisAgent",
+                }
+            })
+        for i, chunk in enumerate(analysis_chunks, 1):
+            outputs.append({
+                "text": chunk,
+                "metadata": {
+                    **base_metadata,
+                    "analysis_type": "macroeconomic_assessment",
+                    "chunk_number": i,
+                    "total_chunks": len(analysis_chunks),
+                    "source": "MacroeconomicAnalysisAgent",
+                }
+            })
+
+        return outputs
 
     def fetch_country_link(self, country_name, overwrite=False):
-        filepath = "../data/countries.json"
+        filepath = self.BASE_DATA_DIR / 'countries.json'
 
         # Usar archivo existente si no se fuerza la actualización
-        if os.path.exists(filepath) and not overwrite:
-            with open(filepath, "r", encoding="utf-8") as f:
+        if filepath.exists() and not overwrite:
+            with filepath.open('r', encoding='utf-8') as f:
                 data = json.load(f)
                 for item in data:
                     if item['country'] == coco.convert(names=country_name, to='name_short', not_found=None):
                         return item['url']
-            return
+            return None
 
         # Si no existe o se fuerza la actualización
         url = "https://tradingeconomics.com/countries"
@@ -112,7 +181,7 @@ class MacroeconomicAnalysisAgent:
 
             if not div_main:
                 print("Div principal no encontrado.")
-                return
+                return None
 
             os.makedirs("data", exist_ok=True)
             country_list = []
@@ -140,9 +209,11 @@ class MacroeconomicAnalysisAgent:
                 country_list.append({"country": "Euro Area", "url": "/euro-area/indicators"})
 
             with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(country_list, f, indent=2, ensure_ascii=False)
+                json.dump(country_list, f, indent=4, ensure_ascii=False)
+                return None
         else:
             print(f"Error al acceder a la página: {response.status_code} {response.reason}")
+            return None
 
     def get_influence_groups(self) -> list[str]:
         """
@@ -168,33 +239,25 @@ class MacroeconomicAnalysisAgent:
         return groups
 
     def fetch_country_data(self, overwrite: bool = False):
-        """
-        Descarga datos macroeconómicos de self.country y de los países que lo influyen.
-        """
-        # Obtener los grupos de influencia
         response = {}
         influence_groups = self.get_influence_groups()
-        print(influence_groups)
 
-        # Iterar por cada bloque (incluyendo 'self')
         for country in influence_groups:
-            if country != "Euro Area":
-                iso2 = coco.convert(names=country, to='ISO2', not_found=None)
-                filepath = f"../data/overview_{iso2}.json"
-            else:
-                iso2 = "EURO"
-                filepath = f"../data/overview_{iso2}.json"
+            iso2 = 'EURO' if country == 'Euro Area' else coco.convert(names=country, to='ISO2', not_found=None)
+            filename = f"overview_{iso2}.json"
+            filepath = self.BASE_DATA_DIR / filename
 
-            # Cargar desde archivo si existe y no forzamos descarga
-            if os.path.exists(filepath) and not overwrite:
-                with open(filepath, "r", encoding="utf-8") as f:
+            # Load existing or fetch
+            if filepath.exists() and not overwrite:
+                with filepath.open('r', encoding='utf-8') as f:
                     data = json.load(f)
             else:
                 data = self._download_country_overview(country)
                 if data is None:
                     continue
-                # Guardar en JSON local
-                with open(filepath, "w", encoding="utf-8") as f:
+                # Ensure data directory
+                self.BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+                with filepath.open('w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=4)
 
             response[iso2] = data
@@ -244,9 +307,16 @@ class MacroeconomicAnalysisAgent:
         return data
 
 
-if __name__ == '__main__':
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    agent = MacroeconomicAnalysisAgent("Apple", "AAPL", "technology", "USA")
-    print(agent.identify_entities())
+# if __name__ == '__main__':
+#     from dotenv import load_dotenv
+#     load_dotenv()
+#
+#     # agent = MacroeconomicAnalysisAgent("Apple", "AAPL", "technology", "USA")
+#     agent = MacroeconomicAnalysisAgent("Iberdola", "IBE.MC", "energy", "Spain")
+#     metadata = {
+#                 'entity': 'Iberdola',
+#                 'ticker': 'IBE.MC',
+#                 'entity_type': 'stock',
+#                 'expiration_date': None
+#             }
+#     print(agent.process_and_chunk(metadata))

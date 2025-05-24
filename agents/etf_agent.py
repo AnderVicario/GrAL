@@ -29,7 +29,7 @@ class ETFAgent:
         self.name = name
         self.ticker = ticker
         self.sector = sector
-        self.etfs = self._identify_etfs() + ['PUNK']
+        self.etfs = self._identify_etfs()
         self.etfs = [t for t in self.etfs if self.is_valid_ticker(t)]
         self.tickers = [ticker] + self.etfs
         self.start_date = pd.to_datetime(start_date)
