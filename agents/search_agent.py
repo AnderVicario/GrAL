@@ -272,6 +272,11 @@ class SearchAgent:
         - **Extract and reinterpret** the core intent behind the user's original prompt, focusing **exclusively** on the specific asset provided.
         - **Ignore comparisons, general questions, or references to other entities** – even if present in the user's query.
         - Output a **concise, precise, and actionable financial query** that relates solely to the given asset.
+        - Identify the **source of financial analysis** most appropriate to answer the refined prompt, choosing from:
+          - `MacroeconomicAnalysisAgent` (for macroeconomic indicators (GDP, inflation, unemployment, exchange rate, stock market, etc.) from countries where the entity is related)
+          - `FundamentalAnalysisAgent` (for fundamental data like financial profile (e.g., P/E, ROE, revenue), financial statements (income, balance sheet, cash flow), and key metrics like profit margin, revenue growth, and debt ratio)
+          - `NewsAgent` (for news headlines related to a specific entity and market sentiment analysis)
+          - `ETFAgent` (for a comparison with its related ETFs, with normalized prices, correlations, momentum, volume patterns, residuals, crossover events, regression and detailed quantitative insights about their financial performance)
 
         Be professional, accurate, and specific. Do not invent facts. If the user’s intent is vague or overly general, assume a request for **general financial analysis** of the asset (including recent trends, relevant metrics, and news).
 
@@ -285,16 +290,33 @@ class SearchAgent:
 
         - **User Prompt:** *“How are cryptocurrencies performing so far this year?”*  
         **Asset:** *Ethereum*  
-        **Refined Prompt:** `Provide a general analysis of Ethereum's performance this year, including price trends, key metrics, and major news.`
-
+        **Refined Prompt:** `Provide a general financial analysis of Ethereum's performance in 2025, including key metrics, market sentiment, and recent news.`  
+        🡒 *Likely Source: NewsAgent + FundamentalAnalysisAgent*
+        
         - **User Prompt:** *“Compare the performance of Bitcoin and Ethereum this quarter.”*  
         **Asset:** *Ethereum*  
-        **Refined Prompt:** `Analyze Ethereum's performance this quarter in isolation, including price evolution, trading volume, and relevant developments.`
-
+        **Refined Prompt:** `Analyze Ethereum's financial performance in Q2 2025, focusing on price evolution, trading volume, and recent developments.`  
+        🡒 *Likely Source: FundamentalAnalysisAgent*
+        
         - **User Prompt:** *“Which tech companies are managing risk better during inflation?”*  
         **Asset:** *Apple Inc.*  
-        **Refined Prompt:** `Assess how Apple Inc. is managing risk during the current inflationary period, including financial and strategic measures.`
-
+        **Refined Prompt:** `Evaluate how Apple Inc. is managing financial risk during the current inflationary period, including macroeconomic exposure and strategic measures.`  
+        🡒 *Likely Source: MacroeconomicAnalysisAgent + FundamentalAnalysisAgent*
+        
+        - **User Prompt:** *“What are the best investment opportunities in renewable energy ETFs?”*  
+        **Asset:** *ICLN (iShares Global Clean Energy ETF)*  
+        **Refined Prompt:** `Analyze ICLN's recent performance, price momentum, and correlation with clean energy sector benchmarks.`  
+        🡒 *Likely Source: ETFAgent*
+        
+        - **User Prompt:** *“What’s happening with Nvidia lately?”*  
+        **Asset:** *Nvidia Corporation*  
+        **Refined Prompt:** `Summarize recent developments related to Nvidia, including key financial events, news sentiment, and stock performance.`  
+        🡒 *Likely Source: NewsAgent + FundamentalAnalysisAgent*
+        
+        - **User Prompt:** *“How is the U.S. economy reacting to the recent interest rate hikes?”*  
+        **Asset:** *United States*  
+        **Refined Prompt:** `Assess the impact of recent interest rate hikes on the U.S. economy, including effects on GDP, inflation, and unemployment.`  
+        🡒 *Likely Source: MacroeconomicAnalysisAgent*
         ---
 
         User Prompt:  
@@ -463,10 +485,11 @@ class SearchAgent:
                 entity.add_documents(macro_docs)
 
             # Bilaketa semantiko optimizatua
-            entity_results = self._handle_semantic_search(entity)
+            distil_query = self._distil_query(entity)
+            entity_results = self._handle_semantic_search(entity, distil_query)
             entity_results = entity_results["entity_results"] + entity_results["global_results"]
             analysis_agent = AnalysisAgent(
-                user_prompt=self._distil_query(entity),
+                user_prompt=distil_query,
                 date_range=self.date_range,
                 context=entity_results
             )
@@ -481,10 +504,10 @@ class SearchAgent:
 
         return all_reports
 
-    def _handle_semantic_search(self, entity):
+    def _handle_semantic_search(self, entity, query):
         # Bilaketa entitate espezifikoan 
         search_results_entity = entity.semantic_search(
-            query=self.user_prompt,
+            query=query,
             k=5,
             num_candidates=50
         )
@@ -499,7 +522,7 @@ class SearchAgent:
         # Bilaketa globala
         global_entity = VectorMongoDB("global_reports")
         search_results_global = global_entity.semantic_search(
-            query=self.user_prompt,
+            query=query,
             k=5,
             num_candidates=50
         )

@@ -304,7 +304,7 @@ class ETFAgent:
             text = json.dumps(payload, ensure_ascii=False)
             # chunk bakarrean sartzen bada
             if len(text) <= max_chars:
-                meta = {**base_metadata, 'analysis_type': atype}
+                meta = {**base_metadata, 'analysis_type': atype, 'source': 'ETFAgent'}
                 chunks.append({'text': text, 'metadata': meta})
             else:
                 # testua zatitu max_chars arabera
