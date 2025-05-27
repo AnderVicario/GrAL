@@ -380,6 +380,9 @@ class SearchAgent:
         self._process_entities()
         all_reports = []
 
+        vector_db = VectorMongoDB("global_reports")
+        vector_db.create_vector_index("global_reports")
+
         # Testua chunk-etan zatitu
         def chunk_text(text, max_chars=1500):
             chunks = []
@@ -502,6 +505,8 @@ class SearchAgent:
                 "ticker": entity.ticker
             })
 
+        vector_db.drop_vector_index("global_reports")
+
         return all_reports
 
     def _handle_semantic_search(self, entity, query):
@@ -536,7 +541,7 @@ class SearchAgent:
 
         # Garbiketa
         entity.drop_vector_index()
-        global_entity.drop_vector_index("global_reports")
+        # global_entity.drop_vector_index("global_reports")
 
         return {
             "entity_results": search_results_entity,
