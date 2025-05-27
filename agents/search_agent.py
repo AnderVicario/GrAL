@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from typing import List
 
 import colorlog
 import pandas as pd
@@ -489,12 +490,12 @@ class SearchAgent:
 
             # Bilaketa semantiko optimizatua
             distil_query = self._distil_query(entity)
-            entity_results = self._handle_semantic_search(entity, distil_query)
-            entity_results = entity_results["entity_results"] + entity_results["global_results"]
+            search_results = self._handle_semantic_search(entity, distil_query)
+
             analysis_agent = AnalysisAgent(
                 user_prompt=distil_query,
                 date_range=self.date_range,
-                context=entity_results
+                context=search_results["reranked_results"]
             )
             final_report = analysis_agent.generate_final_analysis()
             final_markdown = MarkdownAgent(user_text=final_report).generate_markdown()
@@ -509,41 +510,52 @@ class SearchAgent:
 
         return all_reports
 
+    def _rerank_documents(self, query: str, chunks: List[str], top_k: int = 5) -> List[str]:
+        try:
+            response = self.llm_client.rerank.create(
+                model="Salesforce/Llama-Rank-V1",
+                query=query,
+                documents=chunks,
+                top_n=top_k
+            )
+            return [chunks[result.index] for result in response.results]
+        except Exception as e:
+            logging.error(f"Error en reranking: {e}")
+            return chunks[:top_k]
+
     def _handle_semantic_search(self, entity, query):
-        # Bilaketa entitate espezifikoan 
-        search_results_entity = entity.semantic_search(
-            query=query,
-            k=5,
-            num_candidates=50
-        )
-
-        if search_results_entity:
-            result_str_entity = "\n".join(
-                f"{i + 1}. {res['text'][:150]}..."
-                for i, res in enumerate(search_results_entity)
-            )
-            logging.info(f"\n🔍 Resultados para {entity._collection.name}:\n{result_str_entity}")
-
-        # Bilaketa globala
-        global_entity = VectorMongoDB("global_reports")
-        search_results_global = global_entity.semantic_search(
-            query=query,
-            k=5,
-            num_candidates=50
-        )
-
-        if search_results_global:
-            result_str_global = "\n".join(
-                f"{i + 1}. {res['text'][:150]}..."
-                for i, res in enumerate(search_results_global)
-            )
-            logging.info(f"\n🌍 Resultados globales:\n{result_str_global}")
-
-        # Garbiketa
+        # 1. Búsqueda en la entidad específica
+        entity_results = entity.semantic_search(query=query, k=5, num_candidates=50)
         entity.drop_vector_index()
-        # global_entity.drop_vector_index("global_reports")
+
+        # 2. Búsqueda global
+        global_db = VectorMongoDB("global_reports")
+        global_results = global_db.semantic_search(query=query, k=5, num_candidates=50)
+
+        # 3. Combinar y preparar textos
+        combined_results = entity_results + global_results
+        text_chunks = [res['text'] for res in combined_results]
+
+        # 4. Reranking con modelo especializado
+        reranked_texts = self._rerank_documents(query=query, chunks=text_chunks, top_k=8)
+
+        # 5. Recuperar documentos originales con metadatos
+        final_results = []
+        for text in reranked_texts:
+            for doc in combined_results:
+                if doc['text'] == text:
+                    final_results.append(doc)
+                    break
+
+        # 6. Logging de resultados
+        if final_results:
+            log_str = "\n".join(
+                f"{i + 1}. [Source: {res['metadata'].get('source', 'unknown')}] {res['text'][:100]}..."
+                for i, res in enumerate(final_results)
+            )
+            logging.info(f"\n🎯 Reranked Results:\n{log_str}")
 
         return {
-            "entity_results": search_results_entity,
-            "global_results": search_results_global
+            "reranked_results": final_results
         }
+
