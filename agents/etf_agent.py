@@ -280,7 +280,7 @@ class ETFAgent:
         Chunk bakoitza dict bat da: testua (JSON) eta metadatuak.
         """
         if self.tickers.__len__() <= 1:
-            return None
+            return []
 
         if self.data is None:
             self.fetch_data()
