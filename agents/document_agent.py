@@ -1,15 +1,28 @@
 import logging
 import os
 import re
+from dataclasses import dataclass
 from typing import List
 
+import spacy
 from dotenv import load_dotenv
 from fastembed import TextEmbedding
 from llama_parse import LlamaParse
 from pymongo import MongoClient
 from pymongo.operations import SearchIndexModel
 from pymongo.server_api import ServerApi
+from spacy.cli import download
 from together import Together
+
+
+@dataclass
+class ChunkMetadata:
+    """Chunk bakoitzaren metadatuak"""
+    start_idx: int
+    end_idx: int
+    entities: List[dict] = None
+    key_phrases: List[str] = None
+
 
 # Konfigurazioa
 load_dotenv()
@@ -98,7 +111,7 @@ class DocumentAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        print(f"Full response: {full_response}")
+        # print(f"Full response: {full_response}")
         clean_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
         print(f"Response: {clean_response}")
         match = re.search(r"Company:\s*(.+)", clean_response)
@@ -108,9 +121,209 @@ class DocumentAgent:
 
 
 class DocumentProcessor:
-    """
-    PDF dokumentuak prozesatu eta testua zatietan banatzen duen klasea.
-    """
+    def __init__(self, use_spacy: bool = True, language_model: str = "en_core_web_sm"):
+        """
+        DocumentProcessor-aren hasieratzailea.
+        
+        Args:
+            use_spacy: spaCy erabiliko den ala ez
+            language_model: Erabili beharreko spaCy hizkuntza eredua
+        """
+        self.use_spacy = use_spacy
+        self._nlp = None
+        self._language_model = language_model
+
+    def _ensure_model_installed(self) -> None:
+        """
+        Ziurtatzen du spaCy eredua instalatuta dagoela.
+        Ez badago, automatikoki instalatzen du.
+        """
+        try:
+            spacy.load(self._language_model)
+        except OSError:
+            logging.info(f"Instalatzen {self._language_model} eredua...")
+            try:
+                download(self._language_model)
+                logging.info(f"{self._language_model} eredua ondo instalatu da")
+            except Exception as e:
+                logging.error(f"Errorea {self._language_model} eredua instalatzean: {str(e)}")
+                raise
+
+    @property
+    def nlp(self):
+        """Lazy loading spaCy ereduarentzat, instalazioa automatikoki kudeatuz"""
+        if self.use_spacy and self._nlp is None:
+            self._ensure_model_installed()
+            self._nlp = spacy.load(self._language_model)
+        return self._nlp
+
+    def chunk_text(self, text: str, chunk_size: int = 1024, overlap: int = 128) -> List[dict]:
+        """
+        Testua zatitzen du aukeratutako metodoaren arabera.
+        
+        Args:
+            text: Zatitu beharreko testua
+            chunk_size: Zati bakoitzaren gehienezko tamaina
+            overlap: Zatien arteko gainjartzea
+            
+        Returns:
+            List[dict]: Testu zatiak eta beraien metadatuak
+        """
+        if self.use_spacy:
+            return self._spacy_chunk(text, chunk_size, overlap)
+        else:
+            return self._basic_chunk(text, chunk_size, overlap)
+
+    def _basic_chunk(self, text: str, chunk_size: int, overlap: int) -> List[dict]:
+        """Oinarrizko zatiketarako metodoa"""
+
+        def get_semantic_chunks(text: str) -> List[tuple]:
+            lines = text.split('\n')
+            chunks = []
+            current_chunk = []
+            current_size = 0
+            start_idx = 0
+
+            for line in lines:
+                line_size = len(line)
+
+                if (self._is_structural_break(line) and
+                        current_size + line_size > chunk_size and
+                        current_chunk):
+                    chunk_text = '\n'.join(current_chunk)
+                    chunks.append((chunk_text, start_idx, start_idx + len(chunk_text)))
+                    current_chunk = []
+                    current_size = 0
+                    start_idx += len(chunk_text) + 1
+
+                current_chunk.append(line)
+                current_size += line_size + 1
+
+            if current_chunk:
+                chunk_text = '\n'.join(current_chunk)
+                chunks.append((chunk_text, start_idx, start_idx + len(chunk_text)))
+
+            return chunks
+
+        semantic_chunks = get_semantic_chunks(text)
+        return [
+            {
+                "text": chunk[0],
+                "metadata": ChunkMetadata(
+                    start_idx=chunk[1],
+                    end_idx=chunk[2]
+                )
+            }
+            for chunk in semantic_chunks
+        ]
+
+    def _spacy_chunk(self, text: str, chunk_size: int, overlap: int) -> List[dict]:
+        """spaCy bidezko zatiketa metodoa"""
+        doc = self.nlp(text)
+        chunks = []
+        current_chunk = []
+        current_size = 0
+        start_idx = 0
+
+        for sent in doc.sents:
+            sent_size = len(str(sent))
+
+            if current_size + sent_size > chunk_size and current_chunk:
+                chunk_text = " ".join(str(s) for s in current_chunk)
+                chunks.append({
+                    "text": chunk_text,
+                    "metadata": ChunkMetadata(
+                        start_idx=start_idx,
+                        end_idx=start_idx + len(chunk_text),
+                        entities=self._extract_entities(current_chunk),
+                        key_phrases=self._extract_key_phrases(current_chunk)
+                    )
+                })
+                current_chunk = []
+                current_size = 0
+                start_idx += len(chunk_text) + 1
+
+            current_chunk.append(sent)
+            current_size += sent_size + 1
+
+        if current_chunk:
+            chunk_text = " ".join(str(s) for s in current_chunk)
+            chunks.append({
+                "text": chunk_text,
+                "metadata": ChunkMetadata(
+                    start_idx=start_idx,
+                    end_idx=start_idx + len(chunk_text),
+                    entities=self._extract_entities(current_chunk),
+                    key_phrases=self._extract_key_phrases(current_chunk)
+                )
+            })
+
+        return self._apply_overlap(chunks, overlap)
+
+    @staticmethod
+    def _is_structural_break(line: str) -> bool:
+        """Lerro bat egitura-haustura den erabakitzen du"""
+        if not line.strip():
+            return True
+        if re.match(r'^\d+\.', line):
+            return True
+        if line.strip().endswith('.') and len(line) > 50:
+            return True
+        return False
+
+    def _extract_entities(self, sentences) -> List[dict]:
+        """Entitate garrantzitsuak ateratzen ditu"""
+        if not self.use_spacy:
+            return []
+
+        entities = []
+        for sent in sentences:
+            for ent in sent.ents:
+                entities.append({
+                    "text": ent.text,
+                    "label": ent.label_,
+                    "start": ent.start_char,
+                    "end": ent.end_char
+                })
+        return entities
+
+    def _extract_key_phrases(self, sentences) -> List[str]:
+        """Gako-esaldiak ateratzen ditu"""
+        if not self.use_spacy:
+            return []
+
+        key_phrases = []
+        for sent in sentences:
+            for chunk in sent.noun_chunks:
+                if chunk.root.dep_ in {'nsubj', 'dobj'}:
+                    key_phrases.append(str(chunk))
+        return key_phrases
+
+    @staticmethod
+    def _apply_overlap(chunks: List[dict], overlap_size: int) -> List[dict]:
+        """Zatien arteko gainjartzea aplikatzen du"""
+        if not chunks or overlap_size <= 0:
+            return chunks
+
+        result = []
+        for i, chunk in enumerate(chunks):
+            if i == 0:
+                result.append(chunk)
+                continue
+
+            prev_chunk = chunks[i - 1]
+
+            # Entitate komunak bilatu
+            if chunk["metadata"].entities and prev_chunk["metadata"].entities:
+                common_entities = set(e["text"] for e in prev_chunk["metadata"].entities) & \
+                                  set(e["text"] for e in chunk["metadata"].entities)
+                if common_entities:
+                    context = f"Aurreko testuingurua: {', '.join(common_entities)}\n\n"
+                    chunk["text"] = context + chunk["text"]
+
+            result.append(chunk)
+
+        return result
 
     @staticmethod
     async def parse_pdf(file_path: str) -> List[str]:
@@ -132,7 +345,7 @@ class DocumentProcessor:
         return [p.text for p in pages]
 
     @staticmethod
-    def chunk_text(text: str, chunk_size: int = 1024, overlap: int = 128) -> List[str]:
+    def chunk_text_old(text: str, chunk_size: int = 1024, overlap: int = 128) -> List[str]:
         """
         Testu luze bat zati txikiagotan banatzen du, gainjartzea kontuan hartuta.
         

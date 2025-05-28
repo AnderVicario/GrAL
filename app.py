@@ -82,9 +82,10 @@ def index():
                             filename,
                             first_page
                         )
+                        doc_processor = DocumentProcessor(use_spacy=True)
 
                         full_text = "\n".join(pages)
-                        chunks = DocumentProcessor.chunk_text(full_text)
+                        chunks = doc_processor.chunk_text(text=full_text)
 
                         vector_db = VectorMongoDB("global_reports")
                         # vector_db.create_vector_index("global_reports")

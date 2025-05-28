@@ -10,10 +10,23 @@ from together import Together
 
 
 class MacroeconomicAnalysisAgent:
-    """
-    MacroeconomicAnalysisAgent klasea makroekonomia mailako analisia egiteko erabiltzen da.
-    Herrialde baten adierazle makroekonomikoak jaso eta aztertzen ditu, entitate batengan duten eragina ebaluatzeko.
-    """
+    EU_COUNTRIES = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT",
+                    "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"}
+
+    INFLUENCED_BY_USA = {"MX", "CA", "SV", "GT", "HN", "PA", "DO", "CO", "PE", "CL", "PH", "KR", "TW", "IL", "JP", "VN",
+                         "TH", "CR", "EC"}
+
+    INFLUENCED_BY_CHINA = {"PK", "LK", "LA", "KH", "MM", "ZW", "AO", "ZM", "KE", "ET", "VE", "AR", "BR", "ZA", "MY",
+                           "ID"}
+
+    INFLUENCED_BY_GERMANY = {"AT", "CZ", "PL", "SK", "HU", "NL", "BE", "SI", "LU"}
+
+    INFLUENCED_BY_RUSSIA = {"BY", "KZ", "AM", "KG", "TJ", "MD", "RS", "BA", "GE"}
+
+    INFLUENCED_BY_INDIA = {"NP", "BT", "LK", "MV", "BD", "MU", "FJ"}
+
+    BASE_DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
+    BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     def __init__(self, name: str, ticker: str, sector: str, country: str, start_date: str = None, end_date: str = None):
         """
