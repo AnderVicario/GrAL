@@ -473,7 +473,8 @@ class SearchAgent:
                 end_date=self.end_date
             )
             etf_docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
-            entity.add_documents(etf_docs)
+            if etf_docs:
+                entity.add_documents(etf_docs)
 
             # 4. Makro analisia
             macro_agent = MacroeconomicAnalysisAgent(
