@@ -11,31 +11,38 @@ from dotenv import load_dotenv
 from together import Together
 
 from agents.analysis_agent import AnalysisAgent
+from agents.document_agent import VectorMongoDB
 from agents.etf_agent import ETFAgent
-from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.fundamental_agent import FundamentalAnalysisAgent
+from agents.macro_agent import MacroeconomicAnalysisAgent
 from agents.news_agent import NewsAnalysisAgent
 from agents.writing_agent import MarkdownAgent
-from agents.document_agent import VectorMongoDB
 from entities.financial_entity import FinancialEntity
 
 
 def _configure_logging():
     logger = colorlog.getLogger()
-    if not logger.handlers:
-        handler = colorlog.StreamHandler()
-        handler.setFormatter(colorlog.ColoredFormatter(
-            "%(log_color)s%(levelname)-8s %(message)s%(reset)s",
-            log_colors={
-                'DEBUG': 'cyan',
-                'INFO': 'green',
-                'WARNING': 'yellow',
-                'ERROR': 'red',
-                'CRITICAL': 'red,bg_white',
-            }
-        ))
-        logger.setLevel(logging.INFO)
-        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    handler = colorlog.StreamHandler()
+    formatter = colorlog.ColoredFormatter(
+        "%(log_color)s%(levelname)-8s%(reset)s %(message)s",
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'bold_green',
+            'WARNING': 'bold_yellow',
+            'ERROR': 'bold_red',
+            'CRITICAL': 'bold_red,bg_white',
+        },
+        reset=True,
+        style='%'
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.propagate = False
 
 
 class SearchAgent:
@@ -222,29 +229,29 @@ class SearchAgent:
                 content = token.choices[0].delta.content
                 full_response += content
         try:
-            # 1) Limpia etiquetas de pensamiento
+            # 1) Pentsamendu-etiketak garbitu
             cleaned = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
-            # 2) Aísla desde la primera '{'
+            # 2) Isolatu lehenengo '{' -tik
             idx0 = cleaned.find("{")
             if idx0 != -1:
                 cleaned = cleaned[idx0:]
             else:
-                raise ValueError("No se encontró '{' en la respuesta.")
+                raise ValueError("Erantzunean ez zen '{' aurkitu.")
 
-            # 3) Usa raw_decode para extraer solo el primer objeto JSON
+            # 3) Raw_decode erabili lehen JSON objektua bakarrik ateratzeko
             decoder = json.JSONDecoder()
             result_json, idx_end = decoder.raw_decode(cleaned)
 
-            # 4) Valida las claves esperadas
+            # 4) Balidatu espero diren gakoak
             required = {"horizon", "start_date", "end_date", "expiration_date"}
             if not required.issubset(result_json.keys()):
-                raise ValueError("Faltan claves requeridas en la respuesta JSON.")
+                raise ValueError("JSON erantzunean eskatutako gakoak falta dira.")
 
         except Exception as e:
-            logging.error(f"Error al procesar la respuesta JSON: {e}")
+            logging.error(f"Errorea JSON erantzuna prozesatzean: {e}")
 
-            # FALLBACK a valores por defecto
+            # Lehenetsitako balioak ezarri
             today = pd.to_datetime(self.end_date)
             result_json = {
                 "horizon": "medium",
@@ -253,9 +260,9 @@ class SearchAgent:
                 "expiration_date": (today + pd.Timedelta(days=45)).strftime("%Y-%m-%d"),
             }
 
-        print(f"Parsed JSON: {result_json}")
+        print(f"Parseatutako JSON: {result_json}")
 
-        # Finalmente asigna a atributos
+        # Atributuak ezarri
         self.horizon = result_json["horizon"]
         self.start_date = result_json["start_date"]
         self.end_date = result_json["end_date"]
@@ -346,13 +353,13 @@ class SearchAgent:
                 content = token.choices[0].delta.content
                 full_response += content
         response_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
-        logging.info(f"Refined Prompt: {response_text}")
+        logging.info(f"Prompt hobetua: {response_text}")
         return response_text
 
     def _process_entities(self):
         self._set_dates()
         response_text = self._identify_entities()
-        logging.info(f"Respuesta del modelo: {response_text}")
+        logging.info(f"Ereduaren erantzuna: {response_text}")
 
         json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
         if json_match:
@@ -370,12 +377,12 @@ class SearchAgent:
                         search_terms=ent.get("search_terms")
                     )
                     self.entities.append(new_entity)
-                logging.info(f"Se procesaron {len(entities_data)} entidades correctamente.")
+                logging.info(f"{len(entities_data)} entitate behar bezala prozesatu dira.")
             except json.JSONDecodeError as e:
-                logging.error(f"Error al decodificar JSON: {e}")
+                logging.error(f"Errorea JSON deskodetzean: {e}")
                 self._fallback_parsing(response_text)
         else:
-            logging.error("No se encontró una estructura JSON válida en la respuesta.")
+            logging.error("Erantzunean ez da aurkitu JSON egitura baliozkoa.")
 
     def process_all(self, advanced_mode=False):
         self._process_entities()
@@ -521,26 +528,26 @@ class SearchAgent:
             )
             return [chunks[result.index] for result in response.results]
         except Exception as e:
-            logging.error(f"Error en reranking: {e}")
+            logging.error(f"Errorea Reranking egitean: {e}")
             return chunks[:top_k]
 
     def _handle_semantic_search(self, entity, query):
-        # 1. Búsqueda en la entidad específica
+        # 1. Bilaketa entitate espezifikoan
         entity_results = entity.semantic_search(query=query, k=5, num_candidates=50)
         entity.drop_vector_index()
 
-        # 2. Búsqueda global
+        # 2. Bilaketa globala
         global_db = VectorMongoDB("global_reports")
         global_results = global_db.semantic_search(query=query, k=5, num_candidates=50)
 
-        # 3. Combinar y preparar textos
+        # 3. Testuak konbinatu eta prestatu
         combined_results = entity_results + global_results
         text_chunks = [res['text'] for res in combined_results]
 
-        # 4. Reranking con modelo especializado
+        # 4. Reranking eredu espezializatuarekin
         reranked_texts = self._rerank_documents(query=query, chunks=text_chunks, top_k=8)
 
-        # 5. Recuperar documentos originales con metadatos
+        # 5. Jatorrizko dokumentuak metadatuekin berreskuratu
         final_results = []
         for text in reranked_texts:
             for doc in combined_results:
@@ -548,13 +555,13 @@ class SearchAgent:
                     final_results.append(doc)
                     break
 
-        # 6. Logging de resultados
+        # 6. Emaitzak inprimatu
         if final_results:
             log_str = "\n".join(
-                f"{i + 1}. [Source: {res['metadata'].get('source', 'unknown')}] {res['text'][:100]}..."
+                f"{i + 1}. [Iturria: {res['metadata'].get('source', 'unknown')}] {res['text'][:100]}..."
                 for i, res in enumerate(final_results)
             )
-            logging.info(f"\n🎯 Reranked Results:\n{log_str}")
+            logging.info(f"\n🎯 Antzekotasun gehieneko emaitzak:\n{log_str}")
 
         return {
             "reranked_results": final_results

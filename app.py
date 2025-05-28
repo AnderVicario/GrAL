@@ -35,10 +35,12 @@ for lang in language_list:
     with open(lang, 'r', encoding='utf8') as file:
         languages[lang_code] = json.load(file)
 
+
 @app.before_request
 def initialize_conversation():
     if 'conversation' not in session:
         session['conversation'] = []
+
 
 @app.route("/set_lang/<lang>")
 def set_lang(lang):
@@ -47,10 +49,12 @@ def set_lang(lang):
         session['app_language'] = lang
     return redirect(url_for("index"))
 
+
 @app.route('/toggle_advanced', methods=['POST'])
 def toggle_advanced():
     global advanced_mode
     advanced_mode = not advanced_mode
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -68,14 +72,14 @@ def index():
                     filepath = os.path.join('data', filename)
                     file.save(filepath)
                     try:
-                        # 1. Parsear PDF
+                        # PDF parseatu
                         pages = asyncio.run(DocumentProcessor.parse_pdf(filepath))
                         first_page = pages[0] if pages else ""
-                        
-                        # 3. Determinar entidad financiera
+
+                        # Entitatea aurkitu
                         agent = DocumentAgent()
                         selected_company = agent.select_financial_entity(
-                            filename, 
+                            filename,
                             first_page
                         )
 
@@ -92,7 +96,7 @@ def index():
                                     "entity": selected_company,
                                     "filename": filename,
                                     "analysis_type": "document",
-                                    "chunk_number": i+1,
+                                    "chunk_number": i + 1,
                                     "total_chunks": len(chunks),
                                     "source": "DocumentAgent",
                                 }
@@ -109,10 +113,10 @@ def index():
                 "sender": "0",
                 "message": user_input
             })
-            
+
             # Botaren erantzuna lortu
             bot_reports = main(user_input, advanced_mode)
-        
+
             # Convertir a formato Markdown
             formatted_reports = [{
                 "entity": report["entity_name"],
@@ -127,10 +131,10 @@ def index():
                 "current_index": 0
             })
             session.modified = True  # Saioaren aldaketak gorde
-            
+
         return redirect(url_for("index"))
-    
-    return render_template("index.html", 
+
+    return render_template("index.html",
                            translations=translations,
                            conversation=session.get('conversation', []))
 

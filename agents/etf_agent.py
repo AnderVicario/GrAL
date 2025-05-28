@@ -100,7 +100,7 @@ class ETFAgent:
         if self.term == 'short':
             self.start_date = self.end_date - timedelta(days=min_days)
 
-        # Descargar los datos
+        # Datuak deskargatu
         df = yf.download(
             tickers=self.tickers,
             start=self.start_date.strftime('%Y-%m-%d'),
@@ -109,14 +109,14 @@ class ETFAgent:
             progress=False
         )
 
-        # Crear DataFrame con Close y Volume
+        # DataFrame sortu Close eta Volume-rekin
         data = pd.concat({'Close': df['Close'], 'Volume': df['Volume']}, axis=1)
 
-        # Detectar y eliminar columnas que son completamente NaN
+        # Guztiz NaN diren zutabeak detektatu eta ezabatu
         invalid_cols = data.columns[data.isna().all()].tolist()
         if invalid_cols:
             data = data.drop(columns=invalid_cols)
-            invalid_tickers = [col[1] for col in invalid_cols if len(col) > 1]  # Extraer ticker del MultiIndex
+            invalid_tickers = [col[1] for col in invalid_cols if len(col) > 1]  # Atera tickerra MultiIndexetik
             if invalid_tickers:
                 for ticker in invalid_tickers:
                     if ticker in self.etfs:

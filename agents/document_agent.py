@@ -11,7 +11,7 @@ from pymongo.operations import SearchIndexModel
 from pymongo.server_api import ServerApi
 from together import Together
 
-# Configuración
+# Konfigurazioa
 load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB = os.getenv("MONGODB_DB", "data")
@@ -21,10 +21,11 @@ LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-fr
 LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
-# MongoDB client
+# MongoDB bezeroa
 load_dotenv()
 _client = MongoClient(MONGODB_URI, server_api=ServerApi('1'))
 _db = _client[MONGODB_DB]
+
 
 class DocumentAgent:
     def __init__(self):
@@ -87,6 +88,7 @@ class DocumentAgent:
             return match.group(1).strip()
         return None
 
+
 class DocumentProcessor:
     @staticmethod
     async def parse_pdf(file_path: str) -> List[str]:
@@ -107,6 +109,7 @@ class DocumentProcessor:
             start = end - overlap
         return chunks
 
+
 class VectorMongoDB:
     def __init__(self, collection_name: str):
         self.coll = _db[collection_name]
@@ -114,7 +117,8 @@ class VectorMongoDB:
 
     def create_vector_index(self, index_name: str):
         index = SearchIndexModel(
-            definition={"fields": [{"type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine", "quantization": "scalar"}]},
+            definition={"fields": [{"type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine",
+                                    "quantization": "scalar"}]},
             name=index_name,
             type="vectorSearch"
         )
@@ -134,7 +138,7 @@ class VectorMongoDB:
     def add_documents(self, chunks: List[dict]):
         texts = [chunk["text"] for chunk in chunks]
         embeddings = list(self.embedder.embed(texts))
-        
+
         docs = []
         for chunk, emb in zip(chunks, embeddings):
             doc = {
@@ -143,7 +147,7 @@ class VectorMongoDB:
                 "metadata": chunk.get("metadata", {})
             }
             docs.append(doc)
-        
+
         try:
             self.coll.insert_many(docs)
             logging.info(f"Inserted {len(docs)} docs en '{self.coll.name}'")
@@ -176,6 +180,7 @@ class VectorMongoDB:
             logging.error(f"Search error: {e}")
             return []
 
+
 class QAEngine:
     def __init__(self):
         self.client = Together(api_key=TOGETHER_API_KEY)
@@ -206,22 +211,22 @@ class QAEngine:
                 content = token.choices[0].delta.content
                 full_response += content
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
-    
+
 # def main():
 #     # Configuración de prueba
 #     TEST_COLLECTION = "global_reports"
 #     TEST_INDEX_NAME = "global_reports"
-    
+
 #     # 1. Inicializar la conexión
 #     vector_db = VectorMongoDB(TEST_COLLECTION)
-    
+
 #     try:
 #         # 2. Crear índice vectorial
 #         # print("🛠️ Creando índice vectorial...")
 #         # vector_db.create_vector_index(TEST_INDEX_NAME)
 
 #         # time.sleep(5)
-        
+
 #         # # 3. Insertar documentos de prueba con metadatos
 #         # test_documents = [
 #         #     {
@@ -249,22 +254,22 @@ class QAEngine:
 #         #         }
 #         #     }
 #         # ]
-        
+
 #         # print("📄 Insertando documentos de prueba...")
 #         # vector_db.add_documents(test_documents)
-        
+
 #         # 4. Realizar búsqueda semántica
 #         query = "NVIDIA Announces Financial Results for First Quarter"
 #     #     print(f"\n🔍 Realizando búsqueda semántica para: '{query}'")
 #         results = vector_db.semantic_search(query, k=2)
-        
+
 #     #     # 5. Mostrar resultados con metadatos
 #         print(results)
-        
+
 #     #     # 6. Validación básica
 #     #     assert len(results) > 0, "Error: No se encontraron resultados"
 #     #     print("\n✅ Prueba exitosa: Se encontraron resultados relevantes")
-        
+
 #     # except Exception as e:
 #     #     print(f"\n❌ Error en la prueba: {str(e)}")
 #     finally:

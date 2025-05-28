@@ -1,11 +1,12 @@
-import requests
-from bs4 import BeautifulSoup
-import country_converter as coco
-import os
 import json
-from together import Together
+import os
 import re
 from pathlib import Path
+
+import country_converter as coco
+import requests
+from bs4 import BeautifulSoup
+from together import Together
 
 
 class MacroeconomicAnalysisAgent:
@@ -78,23 +79,22 @@ class MacroeconomicAnalysisAgent:
 
     def process_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
         """
-        Fetches country macro data and Together AI analysis, then returns both in JSON-chunked outputs
-        using natural line-boundary splitting.
+        Hartu makro datuak eta Together AI analisia, eta gero itzuli biak JSON-eko irteeretan line-muga banaketa naturala erabiliz.
         """
         outputs = []
 
         if self.country is None:
             return outputs
 
-        # 1. Fetch and serialize raw macroeconomic data
+        # 1. Datu makroekonomiko gordinak bilatu eta serializatu.
         raw_payload = self.fetch_country_data()
         raw_pretty = json.dumps(raw_payload, ensure_ascii=False, indent=4)
 
-        # 2. Analyze with Together AI and serialize
+        # 2. Aztertu eta serializatu
         analysis_text = self._macro_analysis(raw_payload)
 
         def chunk_text(text: str) -> list:
-            """Chunk plain text by sentence or paragraph boundaries."""
+            """Testua zatitu esaldi edo paragrafoen arabera."""
             sentences = re.split(r'(?<=[.!?])\s+', text)  # Divide por frases
             chunks = []
             current = ""
@@ -109,7 +109,7 @@ class MacroeconomicAnalysisAgent:
             return chunks
 
         def chunk_pretty(pretty_str):
-            """Chunk a pretty-printed JSON string at line boundaries."""
+            """JSON zatitu estrukturaren arabera."""
             lines = pretty_str.splitlines(keepends=True)
             chunks = []
             current = ""
@@ -123,11 +123,11 @@ class MacroeconomicAnalysisAgent:
                 chunks.append(current)
             return chunks
 
-        # Generate chunks for each payload
+        # Chunkak sortu payload bakoitzeko
         raw_chunks = chunk_pretty(raw_pretty)
         analysis_chunks = chunk_text(analysis_text)
 
-        # Wrap each chunk with metadata and return
+        # Bildu chunk bakoitza metadatuekin eta itzuli.
         for i, chunk in enumerate(raw_chunks, 1):
             outputs.append({
                 "text": chunk,
@@ -156,7 +156,7 @@ class MacroeconomicAnalysisAgent:
     def fetch_country_link(self, country_name, overwrite=False):
         filepath = self.BASE_DATA_DIR / 'countries.json'
 
-        # Usar archivo existente si no se fuerza la actualización
+        # Lehendik dagoen fitxategia erabili, eguneratzea behartzen ez bada
         if filepath.exists() and not overwrite:
             with filepath.open('r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -165,7 +165,7 @@ class MacroeconomicAnalysisAgent:
                         return item['url']
             return None
 
-        # Si no existe o se fuerza la actualización
+        # Ez badago edo eguneratzea behartzen bada:
         url = "https://tradingeconomics.com/countries"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -180,7 +180,7 @@ class MacroeconomicAnalysisAgent:
             div_main = soup.find("div", {"id": "ctl00_ContentPlaceHolder1_ctl01_tableCountries"})
 
             if not div_main:
-                print("Div principal no encontrado.")
+                print("Div nagusia ezin izan da aurkitu.")
                 return None
 
             os.makedirs("data", exist_ok=True)
@@ -212,15 +212,15 @@ class MacroeconomicAnalysisAgent:
                 json.dump(country_list, f, indent=4, ensure_ascii=False)
                 return None
         else:
-            print(f"Error al acceder a la página: {response.status_code} {response.reason}")
+            print(f"Errorea orrialdean sartzean: {response.status_code} {response.reason}")
             return None
 
     def get_influence_groups(self) -> list[str]:
         """
-        Determina a qué bloques económicos pertenece el país.
+        Herrialdea zein bloke ekonomikotakoa den zehazten du.
         """
         groups = [self.country]
-        # Siempre incluimos el propio país
+        # Beti sartzen dugu berezko herrialdea, noski
         name_std = coco.convert(names=self.country, to='ISO2')
 
         if name_std in self.EU_COUNTRIES:
@@ -247,7 +247,7 @@ class MacroeconomicAnalysisAgent:
             filename = f"overview_{iso2}.json"
             filepath = self.BASE_DATA_DIR / filename
 
-            # Load existing or fetch
+            # Kargatu edo deskargatu
             if filepath.exists() and not overwrite:
                 with filepath.open('r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -255,7 +255,7 @@ class MacroeconomicAnalysisAgent:
                 data = self._download_country_overview(country)
                 if data is None:
                     continue
-                # Ensure data directory
+                # Datuen direktorioa ziurtatu
                 self.BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
                 with filepath.open('w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=4)
@@ -265,9 +265,9 @@ class MacroeconomicAnalysisAgent:
 
     def _download_country_overview(self, country_name: str) -> list:
         """
-        Método interno para descargar y parsear la tabla de Trading Economics.
+        Trading Economics taula deskargatzeko eta parseatzeko barne-metodoa.
         """
-        # Construir URL basándonos en country_name
+        # URLa country_name proiektuan oinarrituta eraiki
         url = f"https://tradingeconomics.com{self.fetch_country_link(country_name)}#overview"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -277,13 +277,13 @@ class MacroeconomicAnalysisAgent:
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            print(f"Error accediendo a {country_name}: {response.status_code}")
+            print(f"Ezin izan da aurkitu {country_name}: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.content, "html.parser")
         table = soup.find("table", {"class": "table table-hover"})
         if not table:
-            print(f"Tabla no encontrada para {country_name}.")
+            print(f"Ezin izan da tauka aurkitu: {country_name}")
             return None
 
         data = []
