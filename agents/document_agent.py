@@ -28,11 +28,29 @@ _db = _client[MONGODB_DB]
 
 
 class DocumentAgent:
+    """
+    Dokumentuen klasifikazioa eta entitate finantzarioen identifikazioa egiten duen agentea.
+    """
+
     def __init__(self):
+        """
+        DocumentAgent-aren hasieratzailea.
+        LLM eredua konfiguratzen du Together API bidez.
+        """
         self.llm_client = Together(api_key=TOGETHER_API_KEY)
         self.model_name = LLM_MODEL
 
     def select_financial_entity(self, filename: str, first_page_content: str) -> str:
+        """
+        Dokumentu baten lehen orrialdean oinarrituta, erlazionatutako entitate finantzarioa identifikatzen du.
+        
+        Args:
+            filename: Dokumentuaren izena
+            first_page_content: Lehen orrialdearen edukia
+            
+        Returns:
+            str: Identifikatutako entitatearen izena edo "No match found"
+        """
         prompt = f"""
         You are a document classification agent.
         Your task is to determine whether a given document is clearly associated with a specific entity.
@@ -90,8 +108,21 @@ class DocumentAgent:
 
 
 class DocumentProcessor:
+    """
+    PDF dokumentuak prozesatu eta testua zatietan banatzen duen klasea.
+    """
+
     @staticmethod
     async def parse_pdf(file_path: str) -> List[str]:
+        """
+        PDF fitxategi bat prozesatu eta testua orrialdeka ateratzen du.
+        
+        Args:
+            file_path: PDF fitxategiaren kokapena
+            
+        Returns:
+            List[str]: Orrialde bakoitzeko testuaren zerrenda
+        """
         parser = LlamaParse(
             api_key=LLAMA_CLOUD_API_KEY,
             parse_mode="parse_page_with_agent",
@@ -102,6 +133,17 @@ class DocumentProcessor:
 
     @staticmethod
     def chunk_text(text: str, chunk_size: int = 1024, overlap: int = 128) -> List[str]:
+        """
+        Testu luze bat zati txikiagotan banatzen du, gainjartzea kontuan hartuta.
+        
+        Args:
+            text: Zatitu beharreko testua
+            chunk_size: Zati bakoitzaren tamaina
+            overlap: Zatien arteko gainjartzea
+            
+        Returns:
+            List[str]: Testu zatien zerrenda
+        """
         chunks, start = [], 0
         while start < len(text):
             end = start + chunk_size
@@ -111,11 +153,28 @@ class DocumentProcessor:
 
 
 class VectorMongoDB:
+    """
+    MongoDB-rekin bektore bilaketa inplementatzen duen klasea.
+    Dokumentuen bektorizazioa eta bilaketa semantikoa ahalbidetzen du.
+    """
+
     def __init__(self, collection_name: str):
+        """
+        VectorMongoDB-ren hasieratzailea.
+        
+        Args:
+            collection_name: MongoDB bildumaren izena
+        """
         self.coll = _db[collection_name]
         self.embedder = TextEmbedding(model_name=EMBEDDING_MODEL)
 
     def create_vector_index(self, index_name: str):
+        """
+        Bektore bilaketa indizea sortzen du MongoDB bilduman.
+        
+        Args:
+            index_name: Indizearen izena
+        """
         index = SearchIndexModel(
             definition={"fields": [{"type": "vector", "path": "embedding", "numDimensions": 768, "similarity": "cosine",
                                     "quantization": "scalar"}]},
@@ -129,6 +188,12 @@ class VectorMongoDB:
             logging.error(f"Error creating index: {e}")
 
     def drop_vector_index(self, index_name: str):
+        """
+        Bektore bilaketa indizea ezabatzen du.
+        
+        Args:
+            index_name: Ezabatu beharreko indizearen izena
+        """
         try:
             self.coll.drop_search_index(index_name)
             logging.info(f"Dropped index '{index_name}' from '{self.coll.name}'")
@@ -136,6 +201,12 @@ class VectorMongoDB:
             logging.error(f"Error dropping index: {e}")
 
     def add_documents(self, chunks: List[dict]):
+        """
+        Dokumentu zatiak bektorizatu eta MongoDB-n gordetzen ditu.
+        
+        Args:
+            chunks: Dokumentu zatien zerrenda, bakoitza bere metadatuekin
+        """
         texts = [chunk["text"] for chunk in chunks]
         embeddings = list(self.embedder.embed(texts))
 
@@ -150,11 +221,22 @@ class VectorMongoDB:
 
         try:
             self.coll.insert_many(docs)
-            logging.info(f"Inserted {len(docs)} docs en '{self.coll.name}'")
+            logging.info(f"Inserted {len(docs)} docs in '{self.coll.name}'")
         except Exception as e:
-            logging.error(f"Error de inserción: {e}")
+            logging.error(f"Insertion error: {e}")
 
     def semantic_search(self, query: str, k: int = 10, num_candidates: int = 100) -> List[dict]:
+        """
+        Bilaketa semantikoa burutzen du gordetako dokumentuetan.
+        
+        Args:
+            query: Bilaketa kontsulta
+            k: Itzuli beharreko emaitza kopurua
+            num_candidates: Aztertu beharreko hautagai kopurua
+            
+        Returns:
+            List[dict]: Aurkitutako dokumentu zatiak, antzekotasunaren arabera ordenatuta
+        """
         q_emb = list(self.embedder.embed([query]))[0].tolist()
         pipeline = [
             {
@@ -182,10 +264,28 @@ class VectorMongoDB:
 
 
 class QAEngine:
+    """
+    Galdera-erantzun sistema inplementatzen duen klasea LLM eredua erabiliz.
+    """
+
     def __init__(self):
+        """
+        QAEngine-ren hasieratzailea.
+        Together API bidezko LLM eredua konfiguratzen du.
+        """
         self.client = Together(api_key=TOGETHER_API_KEY)
 
     def generate_response(self, context: str, question: str) -> str:
+        """
+        Emandako testuinguruan oinarrituta, galderari erantzuna sortzen du.
+        
+        Args:
+            context: Galderaren testuingurua
+            question: Erantzun beharreko galdera
+            
+        Returns:
+            str: LLM ereduak sortutako erantzuna
+        """
         prompt = f"""
         Analyze the following context and answer the question:
 

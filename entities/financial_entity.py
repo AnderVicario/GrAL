@@ -19,7 +19,30 @@ _db = _client[MONGODB_DB]
 
 
 class FinancialEntity:
-    def __init__(self, name, ticker, entity_type, sector=None, country=None, primary_language=None, search_terms=None):
+    """
+    Entitate finantzarioen kudeaketarako klasea, bektore-bilaketa semantikoarekin.
+    MongoDB datu-basean oinarrituta, dokumentuen biltegiratze eta bilaketa bektoriala 
+    ahalbidetzen du.
+    """
+
+    def __init__(self, name: str, ticker: str, entity_type: str, sector: str = None, 
+                 country: str = None, primary_language: str = None, search_terms: list = None):
+        """
+        FinancialEntity klasearen hasieratzailea.
+        
+        Args:
+            name: Entitatearen izena
+            ticker: Burtsako sinboloa
+            entity_type: Entitate mota (adib. 'stock', 'etf', 'crypto')
+            sector: Sektorea (aukerazkoa)
+            country: Herrialdea (aukerazkoa)
+            primary_language: Hizkuntza nagusia (aukerazkoa)
+            search_terms: Bilaketa-termino gehigarriak (aukerazkoa)
+            
+        Notes:
+            - MongoDB bilduma bat sortzen du entitatearen izenean oinarrituta
+            - TextEmbedding modeloa erabiltzen du testuak bektorizatzeko
+        """
         self.name = name
         self.ticker = ticker
         self.entity_type = entity_type
@@ -44,11 +67,27 @@ class FinancialEntity:
 
         self._collection = coll
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Entitatearen string adierazpena.
+        
+        Returns:
+            str: Formatua: "Mota: Izena (Ticker)"
+        """
         return f"{self.entity_type.title()}: {self.name} ({self.ticker})"
 
     def create_vector_index(self):
-        """Bektore-indizea bilduman sortu"""
+        """
+        Bektore-bilaketa indizea sortzen du MongoDB bilduman.
+        
+        Indizearen ezaugarriak:
+        - 768 dimentsio
+        - Kosinu antzekotasuna
+        - Eskalar kuantizazioa
+        
+        Raises:
+            Exception: Indizea sortzean erroreren bat gertatzen bada
+        """
 
         index = SearchIndexModel(
             definition={
@@ -70,7 +109,12 @@ class FinancialEntity:
             logging.error(f"Failed to create/update vector index: {e}")
 
     def drop_vector_index(self):
-        """Bektore-indizea bildumatik ezabatu"""
+        """
+        Bektore-bilaketa indizea ezabatzen du MongoDB bildumatik.
+        
+        Raises:
+            Exception: Indizea ezabatzean erroreren bat gertatzen bada
+        """
 
         try:
             self._collection.drop_search_index("vector_index")
@@ -78,8 +122,25 @@ class FinancialEntity:
         except Exception as e:
             logging.error(f"Failed to drop vector index: {e}")
 
-    def add_documents(self, records):
-        """Dokumentuak gehitu embedding-en bitartez."""
+    def add_documents(self, records: list):
+        """
+        Dokumentuak prozesatu eta MongoDB bilduman gordetzen ditu bektore-adierazpenarekin.
+        
+        Args:
+            records: Dokumentuen zerrenda. Dokumentu bakoitza dict bat da:
+                    {
+                        'text': str,  # Dokumentuaren testua
+                        'metadata': dict  # Metadatuak (aukerazkoa)
+                    }
+                    
+        Process:
+            1. Testu bakoitzarentzat bektore-adierazpena sortzen du
+            2. Metadatuak gehitzen ditu (baldin badaude)
+            3. MongoDB bilduman gordetzen ditu
+            
+        Raises:
+            Exception: Dokumentuak txertatzean erroreren bat gertatzen bada
+        """
 
         texts = [rec['text'] for rec in records]
         embeddings = list(self.embedder.embed(texts))
@@ -98,8 +159,29 @@ class FinancialEntity:
         except Exception as e:
             logging.error(f"Error inserting documents: {e}")
 
-    def semantic_search(self, query, k=10, num_candidates=100):
-        """Bilaketa semantikoa erabiltzailearen galderaren arabera."""
+    def semantic_search(self, query: str, k: int = 10, num_candidates: int = 100) -> list:
+        """
+        Bilaketa semantikoa burutzen du gordetako dokumentuetan.
+        
+        Args:
+            query: Bilaketa-kontsulta
+            k: Itzuli beharreko emaitza kopurua (lehenetsia: 10)
+            num_candidates: Aztertu beharreko hautagai kopurua (lehenetsia: 100)
+            
+        Returns:
+            list: Aurkitutako dokumentuen zerrenda, bakoitza dict formatuan:
+                 {
+                     'text': str,  # Dokumentuaren testua
+                     'metadata': dict  # Metadatuak (baldin badaude)
+                 }
+                 
+        Notes:
+            - Kontsulta bektorizatu eta kosinu-antzekotasuna erabiltzen du bilaketarako
+            - Indizerik ez badago, ohartarazpen bat sortzen du
+            
+        Raises:
+            Exception: Bilaketan erroreren bat gertatzen bada
+        """
 
         if 'vector_index' not in self._collection.list_search_indexes():
             logging.warning("Vector index does not exist.")

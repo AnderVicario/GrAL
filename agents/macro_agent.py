@@ -10,25 +10,23 @@ from together import Together
 
 
 class MacroeconomicAnalysisAgent:
-    EU_COUNTRIES = {"AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT",
-                    "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE"}
-
-    INFLUENCED_BY_USA = {"MX", "CA", "SV", "GT", "HN", "PA", "DO", "CO", "PE", "CL", "PH", "KR", "TW", "IL", "JP", "VN",
-                         "TH", "CR", "EC"}
-
-    INFLUENCED_BY_CHINA = {"PK", "LK", "LA", "KH", "MM", "ZW", "AO", "ZM", "KE", "ET", "VE", "AR", "BR", "ZA", "MY",
-                           "ID"}
-
-    INFLUENCED_BY_GERMANY = {"AT", "CZ", "PL", "SK", "HU", "NL", "BE", "SI", "LU"}
-
-    INFLUENCED_BY_RUSSIA = {"BY", "KZ", "AM", "KG", "TJ", "MD", "RS", "BA", "GE"}
-
-    INFLUENCED_BY_INDIA = {"NP", "BT", "LK", "MV", "BD", "MU", "FJ"}
-
-    BASE_DATA_DIR = Path(__file__).resolve().parent.parent / 'data'
-    BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    """
+    MacroeconomicAnalysisAgent klasea makroekonomia mailako analisia egiteko erabiltzen da.
+    Herrialde baten adierazle makroekonomikoak jaso eta aztertzen ditu, entitate batengan duten eragina ebaluatzeko.
+    """
 
     def __init__(self, name: str, ticker: str, sector: str, country: str, start_date: str = None, end_date: str = None):
+        """
+        Klasearen hasieratzailea.
+        
+        Args:
+            name (str): Entitatearen izena
+            ticker (str): Entitatearen burtsa kodea
+            sector (str): Entitatearen sektorea
+            country (str): Entitatearen jatorrizko herrialdea
+            start_date (str, aukerakoa): Hasiera data
+            end_date (str, aukerakoa): Amaiera data
+        """
         self.name = name
         self.ticker = ticker
         self.sector = sector
@@ -39,6 +37,15 @@ class MacroeconomicAnalysisAgent:
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
     def _macro_analysis(self, data_to_analize):
+        """
+        Emandako datu makroekonomikoen analisia burutzen du LLM eredua erabiliz.
+        
+        Args:
+            data_to_analize: Aztertu beharreko datu makroekonomikoak
+            
+        Returns:
+            str: Analisiaren emaitza testuan
+        """
         prompt = f"""
         You are a financial analyst specialized in macroeconomic analysis.
         Your task is to evaluate the general economic context and its potential impact on a specific entity.
@@ -79,7 +86,14 @@ class MacroeconomicAnalysisAgent:
 
     def process_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
         """
-        Hartu makro datuak eta Together AI analisia, eta gero itzuli biak JSON-eko irteeretan line-muga banaketa naturala erabiliz.
+        Herrialdearen datu makroekonomikoak prozesatu eta zatitan banatzen ditu.
+        
+        Args:
+            base_metadata (dict): Oinarrizko metadatuak
+            max_chars (int): Zati bakoitzaren gehienezko karaktere kopurua
+            
+        Returns:
+            list: Zatitutako datuen eta analisiaren lista
         """
         outputs = []
 
@@ -87,7 +101,7 @@ class MacroeconomicAnalysisAgent:
             return outputs
 
         # 1. Datu makroekonomiko gordinak bilatu eta serializatu.
-        raw_payload = self.fetch_country_data()
+        raw_payload = self._fetch_country_data()
         raw_pretty = json.dumps(raw_payload, ensure_ascii=False, indent=4)
 
         # 2. Aztertu eta serializatu
@@ -109,7 +123,7 @@ class MacroeconomicAnalysisAgent:
             return chunks
 
         def chunk_pretty(pretty_str):
-            """JSON zatitu estrukturaren arabera."""
+            """JSON zatitu egituraren arabera."""
             lines = pretty_str.splitlines(keepends=True)
             chunks = []
             current = ""
@@ -153,7 +167,17 @@ class MacroeconomicAnalysisAgent:
 
         return outputs
 
-    def fetch_country_link(self, country_name, overwrite=False):
+    def _fetch_country_link(self, country_name, overwrite=False):
+        """
+        Trading Economics webgunetik herrialdearen URLa lortzen du.
+        
+        Args:
+            country_name: Herrialdearen izena
+            overwrite (bool): Fitxategian gainidatzi behar bada
+            
+        Returns:
+            str: Herrialdearen URLa edo None
+        """
         filepath = self.BASE_DATA_DIR / 'countries.json'
 
         # Lehendik dagoen fitxategia erabili, eguneratzea behartzen ez bada
@@ -180,7 +204,7 @@ class MacroeconomicAnalysisAgent:
             div_main = soup.find("div", {"id": "ctl00_ContentPlaceHolder1_ctl01_tableCountries"})
 
             if not div_main:
-                print("Div nagusia ezin izan da aurkitu.")
+                print("Main Div not found.")
                 return None
 
             os.makedirs("data", exist_ok=True)
@@ -212,12 +236,15 @@ class MacroeconomicAnalysisAgent:
                 json.dump(country_list, f, indent=4, ensure_ascii=False)
                 return None
         else:
-            print(f"Errorea orrialdean sartzean: {response.status_code} {response.reason}")
+            print(f"Error accessing the page: {response.status_code} {response.reason}")
             return None
 
-    def get_influence_groups(self) -> list[str]:
+    def _get_influence_groups(self) -> list[str]:
         """
-        Herrialdea zein bloke ekonomikotakoa den zehazten du.
+        Herrialdea zein eragin-taldetan dagoen zehazten du.
+        
+        Returns:
+            list[str]: Eragin-taldeen lista
         """
         groups = [self.country]
         # Beti sartzen dugu berezko herrialdea, noski
@@ -238,9 +265,18 @@ class MacroeconomicAnalysisAgent:
 
         return groups
 
-    def fetch_country_data(self, overwrite: bool = False):
+    def _fetch_country_data(self, overwrite: bool = False):
+        """
+        Herrialdearen datu makroekonomikoak jasotzen ditu.
+        
+        Args:
+            overwrite (bool): Fitxategian gainidatzi behar bada
+            
+        Returns:
+            dict: Herrialdearen datu makroekonomikoak
+        """
         response = {}
-        influence_groups = self.get_influence_groups()
+        influence_groups = self._get_influence_groups()
 
         for country in influence_groups:
             iso2 = 'EURO' if country == 'Euro Area' else coco.convert(names=country, to='ISO2', not_found=None)
@@ -265,10 +301,16 @@ class MacroeconomicAnalysisAgent:
 
     def _download_country_overview(self, country_name: str) -> list:
         """
-        Trading Economics taula deskargatzeko eta parseatzeko barne-metodoa.
+        Trading Economics webgunetik herrialdearen ikuspegi orokorra deskargatzen du.
+        
+        Args:
+            country_name (str): Herrialdearen izena
+            
+        Returns:
+            list: Herrialdearen adierazle ekonomikoen lista edo None
         """
         # URLa country_name proiektuan oinarrituta eraiki
-        url = f"https://tradingeconomics.com{self.fetch_country_link(country_name)}#overview"
+        url = f"https://tradingeconomics.com{self._fetch_country_link(country_name)}#overview"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                           "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -277,13 +319,13 @@ class MacroeconomicAnalysisAgent:
 
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            print(f"Ezin izan da aurkitu {country_name}: {response.status_code}")
+            print(f"Could not be found {country_name}: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.content, "html.parser")
         table = soup.find("table", {"class": "table table-hover"})
         if not table:
-            print(f"Ezin izan da tauka aurkitu: {country_name}")
+            print(f"Could not be found table: {country_name}")
             return None
 
         data = []

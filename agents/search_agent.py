@@ -46,7 +46,19 @@ def _configure_logging():
 
 
 class SearchAgent:
+    """
+    SearchAgent klasea finantza entitateen bilaketa eta analisi integralak egiteko erabiltzen da.
+    Erabiltzailearen kontsultatik abiatuta, finantza entitateak identifikatu eta haien inguruko
+    analisi sakonak burutzen ditu hainbat iturri erabiliz.
+    """
+
     def __init__(self, user_prompt):
+        """
+        SearchAgent-aren hasieratzailea.
+        
+        Args:
+            user_prompt (str): Erabiltzailearen kontsulta testuan
+        """
         load_dotenv()
         _configure_logging()
 
@@ -56,11 +68,18 @@ class SearchAgent:
         self.entities = []
         self.horizon = None
         self.start_date = None
-        self.end_date = datetime.now()  # generally, current date
+        self.end_date = datetime.now()  # orokorrean, gaur egungo data
         self.expiration_date = None
         self.date_range = None
 
     def _identify_entities(self):
+        """
+        Erabiltzailearen kontsultan aipatutako finantza entitateak identifikatzen ditu.
+        Yahoo Finance-ko sinbolo formatuak erabiltzen ditu entitateak identifikatzeko.
+        
+        Returns:
+            str: JSON formatuan identifikatutako entitateen informazioa
+        """
         prompt = f"""
         You are a highly specialized financial assistant. Your task is to extract or suggest financial entities from the user's query. 
         The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
@@ -146,6 +165,11 @@ class SearchAgent:
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
 
     def _set_dates(self):
+        """
+        Kontsultaren denbora tartea eta iraungitze data ezartzen ditu.
+        Denbora tartea lau motatan sailkatzen da: very_short, short, medium eta long.
+        Kontsultan data zehatzik aipatzen ez bada, denbora tartearen arabera kalkulatzen dira datak.
+        """
         prompt = f"""
         You are a financial scheduling agent. Given a free-text investment query, your task is to extract:
 
@@ -237,7 +261,7 @@ class SearchAgent:
             if idx0 != -1:
                 cleaned = cleaned[idx0:]
             else:
-                raise ValueError("Erantzunean ez zen '{' aurkitu.")
+                raise ValueError("Not found character: '{'")
 
             # 3) Raw_decode erabili lehen JSON objektua bakarrik ateratzeko
             decoder = json.JSONDecoder()
@@ -246,10 +270,10 @@ class SearchAgent:
             # 4) Balidatu espero diren gakoak
             required = {"horizon", "start_date", "end_date", "expiration_date"}
             if not required.issubset(result_json.keys()):
-                raise ValueError("JSON erantzunean eskatutako gakoak falta dira.")
+                raise ValueError("Required keys are missing from the JSON response.")
 
         except Exception as e:
-            logging.error(f"Errorea JSON erantzuna prozesatzean: {e}")
+            logging.error(f"Error processing JSON response: {e}")
 
             # Lehenetsitako balioak ezarri
             today = pd.to_datetime(self.end_date)
@@ -260,7 +284,7 @@ class SearchAgent:
                 "expiration_date": (today + pd.Timedelta(days=45)).strftime("%Y-%m-%d"),
             }
 
-        print(f"Parseatutako JSON: {result_json}")
+        print(f"Parsed JSON: {result_json}")
 
         # Atributuak ezarri
         self.horizon = result_json["horizon"]
@@ -269,6 +293,15 @@ class SearchAgent:
         self.expiration_date = result_json["expiration_date"]
 
     def _distil_query(self, entity):
+        """
+        Erabiltzailearen kontsulta sintetizatu eta entitate zehatz baterako egokitzen du.
+        
+        Args:
+            entity: Aztertu beharreko finantza entitatea
+            
+        Returns:
+            str: Entitaterako optimizatutako kontsulta
+        """
         prompt = f"""
         You are a financial synthesis agent. Your task is to take two inputs:
 
@@ -353,13 +386,18 @@ class SearchAgent:
                 content = token.choices[0].delta.content
                 full_response += content
         response_text = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
-        logging.info(f"Prompt hobetua: {response_text}")
+        logging.info(f"Refined Prompt: {response_text}")
         return response_text
 
     def _process_entities(self):
+        """
+        Identifikatutako entitateak prozesatzen ditu FinancialEntity objektuak sortuz.
+        JSON erantzuna prozesatu eta entitate bakoitzaren informazioa gordetzen du.
+        Erroreak gertatzen badira, ordezko prozesamendu bat erabiltzen du.
+        """
         self._set_dates()
         response_text = self._identify_entities()
-        logging.info(f"Ereduaren erantzuna: {response_text}")
+        logging.info(f"Model response: {response_text}")
 
         json_match = re.search(r'\[\s*{.*}\s*\]', response_text, re.DOTALL)
         if json_match:
@@ -377,14 +415,23 @@ class SearchAgent:
                         search_terms=ent.get("search_terms")
                     )
                     self.entities.append(new_entity)
-                logging.info(f"{len(entities_data)} entitate behar bezala prozesatu dira.")
+                logging.info(f"{len(entities_data)} entities processed successfully.")
             except json.JSONDecodeError as e:
-                logging.error(f"Errorea JSON deskodetzean: {e}")
+                logging.error(f"Error decoding JSON: {e}")
                 self._fallback_parsing(response_text)
         else:
-            logging.error("Erantzunean ez da aurkitu JSON egitura baliozkoa.")
+            logging.error("No valid JSON structure was found in the response.")
 
     def process_all(self, advanced_mode=False):
+        """
+        Identifikatutako entitate guztien analisi integrala burutzen du.
+        
+        Args:
+            advanced_mode (bool): Analisi aurreratua aktibatu/desaktibatu
+            
+        Returns:
+            list: Entitate bakoitzaren analisi txostenak
+        """
         self._process_entities()
         all_reports = []
 
@@ -519,6 +566,17 @@ class SearchAgent:
         return all_reports
 
     def _rerank_documents(self, query: str, chunks: List[str], top_k: int = 5) -> List[str]:
+        """
+        Dokumentuen zerrenda bat berriro ordenatzen du kontsultaren garrantziaren arabera.
+        
+        Args:
+            query (str): Bilaketa kontsulta
+            chunks (List[str]): Ordenatu beharreko dokumentu zatiak
+            top_k (int): Itzuli beharreko emaitza kopurua
+            
+        Returns:
+            List[str]: Berrordenatutako dokumentuen lista
+        """
         try:
             response = self.llm_client.rerank.create(
                 model="Salesforce/Llama-Rank-V1",
@@ -528,10 +586,20 @@ class SearchAgent:
             )
             return [chunks[result.index] for result in response.results]
         except Exception as e:
-            logging.error(f"Errorea Reranking egitean: {e}")
+            logging.error(f"Error Reranking: {e}")
             return chunks[:top_k]
 
     def _handle_semantic_search(self, entity, query):
+        """
+        Bilaketa semantikoa burutzen du entitate zehatz batentzat.
+        
+        Args:
+            entity: Bilaketa egingo den entitatea
+            query: Bilaketa kontsulta
+            
+        Returns:
+            dict: Bilaketa emaitzak, garrantziaren arabera ordenatuta
+        """
         # 1. Bilaketa entitate espezifikoan
         entity_results = entity.semantic_search(query=query, k=5, num_candidates=50)
         entity.drop_vector_index()
@@ -558,12 +626,11 @@ class SearchAgent:
         # 6. Emaitzak inprimatu
         if final_results:
             log_str = "\n".join(
-                f"{i + 1}. [Iturria: {res['metadata'].get('source', 'unknown')}] {res['text'][:100]}..."
+                f"{i + 1}. [Source: {res['metadata'].get('source', 'unknown')}] {res['text'][:100]}..."
                 for i, res in enumerate(final_results)
             )
-            logging.info(f"\n🎯 Antzekotasun gehieneko emaitzak:\n{log_str}")
+            logging.info(f"\n🎯 Final Reranked results:\n{log_str}")
 
         return {
             "reranked_results": final_results
         }
-

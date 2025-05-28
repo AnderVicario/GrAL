@@ -6,7 +6,22 @@ from together import Together
 
 
 class MarkdownAgent:
-    def __init__(self, user_text):
+    """
+    Testu arrunta Markdown formatuko testura bihurtzen duen agente adimenduna.
+    Testuaren egitura mantenduz, Markdown formatuaren elementuak aplikatzen ditu 
+    irakurgarritasuna hobetzeko.
+    """
+
+    def __init__(self, user_text: str):
+        """
+        MarkdownAgent-aren hasieratzailea.
+        
+        Args:
+            user_text: Formateatu beharreko testu gordina
+            
+        Notes:
+            LLM eredu bat erabiltzen du (meta-llama/Llama-Vision-Free) Together API bidez
+        """
         load_dotenv()
 
         self.llm_client = Together()
@@ -14,7 +29,55 @@ class MarkdownAgent:
         self.user_text = user_text
         self.current_date = datetime.now()
 
-    def generate_markdown(self):
+    def generate_markdown(self) -> str:
+        """
+        Testu gordina Markdown formatura bihurtzen du arau zehatz batzuk jarraituz:
+        
+        Formateatze Arauak:
+        1. Izenburuak:
+           - Soilik '##' erabiltzen da erabiltzaileak argi ematen dituen izenburuetarako
+           - Ez da izenburuen asmaketarik egiten
+           
+        2. Enfasi elementuak:
+           - **letra lodia** hitz garrantzitsuetarako
+           - *italikoa* termino berezietarako
+           
+        3. Zerrendak:
+           - '-' ikurra erabiltzen da zerrenda elementuetarako
+           - Ez da '|' ikurra erabiltzen
+           
+        4. Egitura:
+           - Jatorrizko testuaren egitura mantentzen da
+           - Balio gabeko edo baliogabeko xehetasunak soilik ezabatzen dira
+           
+        Returns:
+            str: Markdown formatuan dagoen testua, garbia eta txukuna
+                 - Markdown bloke etiketak (```) kenduta
+                 - Hasierako eta amaierako hutsune gehigarriak kenduta
+        
+        Examples:
+            Input:
+            ```
+            NIRE OHARRAK
+            Hau oso ideia garrantzitsua da.
+            
+            Gustuko fruituak:
+            sagarra
+            banana
+            gerezia
+            ```
+            
+            Output:
+            ```markdown
+            ## NIRE OHARRAK
+            Hau **oso ideia garrantzitsua** da.
+            
+            ### Gustuko fruituak:
+            - sagarra
+            - banana
+            - gerezia
+            ```
+        """
         prompt = f"""
         You are a writing assistant that formats plain text into clean Markdown.
 

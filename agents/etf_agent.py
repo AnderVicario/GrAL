@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import timedelta
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -11,26 +12,29 @@ from together import Together
 
 class ETFAgent:
     """
-    ETFAgent: Entitate bat eta harekin erlazionatutako ETF-ak aztertzeko klasea, eta RAG sistemarako chunk-ak itzultzen ditu.
-    Epearen arabera egokitutako estrategia hauek erabiltzen dira (laburra, ertaina, luzea):
-      - Prezioen normalizazioa
-      - Errendimenduen korrelazioa
-      - Momentu erlatiboa
-      - Bolumen konparazioa
-      - Errendimenduaren aldea (errestoa)
-      - Errendimenduen gurutzaketak detektatzea
-      - Entitatea~ETF erregresio-analisia
+    ETFAgent klasea entitate finantzario bat eta harekin erlazionatutako ETF-en analisia egiteko.
+    Analisiak hiru denbora-epetan egiten dira (laburra, ertaina, luzea) eta emaitzak RAG sistemarako 
+    chunk-etan itzultzen dira.
     """
 
-    def __init__(self, name: str, ticker: str, sector: str,
-                 start_date: str = '2023-01-01', end_date: str = None):
+    def __init__(self, name: str, ticker: str, sector: str, start_date: str = '2023-01-01', end_date: str = None):
+        """
+        ETFAgent-aren hasieratzailea.
+        
+        Args:
+            name: Entitatearen izena
+            ticker: Burtsako sinboloa
+            sector: Sektorea
+            start_date: Hasiera data (lehenetsia: '2023-01-01')
+            end_date: Amaiera data (lehenetsia: gaur)
+        """
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.name = name
         self.ticker = ticker
         self.sector = sector
         self.etfs = self._identify_etfs()
-        self.etfs = [t for t in self.etfs if self.is_valid_ticker(t)]
+        self.etfs = [t for t in self.etfs if self._is_valid_ticker(t)]
         self.tickers = [ticker] + self.etfs
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date) if end_date else pd.Timestamp.today()
@@ -40,7 +44,13 @@ class ETFAgent:
         delta_days = (self.end_date - self.start_date).days
         self.term = 'short' if delta_days <= 30 else 'medium' if delta_days <= 180 else 'long'
 
-    def _identify_etfs(self):
+    def _identify_etfs(self) -> list:
+        """
+        Entitatearekin erlazionatutako ETF-ak identifikatzen ditu LLM eredua erabiliz.
+        
+        Returns:
+            list: Erlazionatutako ETF-en ticker zerrenda
+        """
         prompt = f"""
         You are a financial analyst assistant. Given a financial entity name, its stock ticker and sector, return a list of ETF tickers that are related to this entity. Relationships can be based on sector, industry, country of origin, or inclusion in ETF holdings.
 
@@ -96,7 +106,14 @@ class ETFAgent:
         tickers = [t.strip().upper() for t in tickers if t.strip()]
         return tickers
 
-    def fetch_data(self, min_days: int = 30):
+    def _fetch_data(self, min_days: int = 30):
+        """
+        Yahoo Finance-tik prezio eta bolumen datuak eskuratzen ditu.
+        NaN balioak dituzten ETF-ak ezabatzen ditu.
+        
+        Args:
+            min_days: Gutxieneko egun kopurua epe laburrerako
+        """
         if self.term == 'short':
             self.start_date = self.end_date - timedelta(days=min_days)
 
@@ -126,7 +143,13 @@ class ETFAgent:
 
         self.data = data
 
-    def normalize_prices(self):
+    def _normalize_prices(self) -> pd.DataFrame:
+        """
+        Prezioak normalizatzen ditu (100eko oinarria) konparaketak errazteko.
+        
+        Returns:
+            DataFrame normalizatutako prezioekin
+        """
         # Prezioak normalizatu lehen balio erabilgarriarekin oinarrituta
         if self.data is None:
             raise ValueError("No data. Use fetch_data() first.")
@@ -140,7 +163,13 @@ class ETFAgent:
         self.normalized = close.divide(first_valid).multiply(100)
         return self.normalized
 
-    def compute_correlation(self):
+    def _compute_correlation(self) -> pd.Series:
+        """
+        Entitatearen eta ETF-en arteko korrelazio koefizienteak kalkulatzen ditu.
+        
+        Returns:
+            Series ETF bakoitzarekiko korrelazio balioekin
+        """
         # Errendimenduen arteko korrelazioa kalkulatu
         if self.data is None:
             raise ValueError("No data. Use fetch_data() first.")
@@ -152,13 +181,15 @@ class ETFAgent:
         corr = returns.corr()[self.ticker].drop(self.ticker)
         return corr
 
-    def compute_momentum(self):
+    def _compute_momentum(self) -> pd.Series:
         """
-        Momentuma kalkulatu (ehunekotan errendimendua) epearen arabera:
-          - laburra: 30 egun arte
-          - ertaina: 180 egun arte
-          - luzea: datu guztien arabera
-        Eskuragarri dauden datuak baino gehiago eskatzen bada, historiko osoa erabiliko da.
+        Momentu adierazlea kalkulatzen du epearen arabera:
+        - Laburra: 30 egun
+        - Ertaina: 180 egun
+        - Luzea: Epe osoa
+        
+        Returns:
+            Series ETF bakoitzaren momentu balioekin
         """
         if self.data is None:
             raise ValueError("No data. Use fetch_data() first.")
@@ -185,14 +216,20 @@ class ETFAgent:
 
         return momentum
 
-    def compare_volume(self):
+    def _compare_volume(self) -> pd.DataFrame:
+        """
+        Bolumenaren analisia egiten du, batezbesteko mugikorra eta Z-score estatistikoak erabiliz.
+        
+        Returns:
+            DataFrame bolumen, batezbesteko mugikor eta Z-score balioekin
+        """
         if self.data is None:
-            raise ValueError("Daturik ez. Erabili fetch_data() lehenik.")
+            raise ValueError("No data. Use fetch_data() first.")
 
         window = 5 if self.term == 'short' else 20 if self.term == 'medium' else 60
 
         if len(self.data) < window:
-            raise ValueError(f"Ez dago nahikoa datu. Beharrezkoak: {window}, dauzkagu: {len(self.data)}")
+            raise ValueError(f"Not enough data. Required: {window}, have: {len(self.data)}")
 
         # Bolumenarekin, NaN balioak betetzea
         vol = self.data['Volume'].ffill().bfill()
@@ -209,7 +246,13 @@ class ETFAgent:
             'ZScore': z.iloc[-1]
         })
 
-    def compute_residual(self):
+    def _compute_residual(self) -> pd.Series:
+        """
+        Entitatearen eta ETF-en arteko prezio diferentziak kalkulatzen ditu.
+        
+        Returns:
+            Series ETF bakoitzarekiko diferentzia balioekin
+        """
         # Entitatearen eta ETF-en arteko errestoak kalkulatu
         if self.normalized is None:
             raise ValueError("No data. Use normalize_prices() first.")
@@ -220,7 +263,13 @@ class ETFAgent:
         df = pd.DataFrame(diff, index=norm.index, columns=self.etfs)
         return df.mean() if self.term == 'long' else df.iloc[-1]
 
-    def detect_crossovers(self):
+    def _detect_crossovers(self) -> pd.DataFrame:
+        """
+        Prezioen gurutzaketak detektatzen ditu entitatearen eta ETF-en artean.
+        
+        Returns:
+            DataFrame gurutzaketen data, ETF eta norabidearekin
+        """
         # Errendimenduen arteko gurutzaketak detektatu
         if self.normalized is None:
             raise ValueError("No data. Use normalize_prices() first.")
@@ -238,7 +287,13 @@ class ETFAgent:
                              'Direction': 'up' if diff.loc[date] > 0 else 'down'})
         return pd.DataFrame(rows)
 
-    def regression_analysis(self):
+    def _regression_analysis(self) -> dict:
+        """
+        Erregresio lineala burutzen du entitatearen eta ETF-en artean.
+        
+        Returns:
+            dict erregresioaren emaitza estatistikoekin
+        """
         if self.data is None:
             raise ValueError("No data. Use fetch_data() first.")
         ret = self.data['Close'].ffill().pct_change().dropna()
@@ -258,16 +313,34 @@ class ETFAgent:
             'residuals_summary': resid.describe().to_dict()
         }
 
-    def to_json(self, obj):
+    def _to_json(self, obj) -> Union[dict, list, float, int]:
+        """
+        Pandas eta Numpy objektuak JSON formatura bihurtzen ditu.
+        
+        Args:
+            obj: Bihurtu beharreko objektua
+            
+        Returns:
+            JSON bateragarria den objektua
+        """
         # Objektuak (DataFrame, Series, etab.) JSON bihurtu
         if isinstance(obj, pd.DataFrame): return obj.reset_index().to_dict('records')
         if isinstance(obj, pd.Series): return obj.to_dict()
         if isinstance(obj, (np.floating, float)): return float(obj)
         if isinstance(obj, (np.integer, int)): return int(obj)
-        if isinstance(obj, dict): return {k: self.to_json(v) for k, v in obj.items()}
+        if isinstance(obj, dict): return {k: self._to_json(v) for k, v in obj.items()}
         return obj
 
-    def is_valid_ticker(self, ticker: str) -> bool:
+    def _is_valid_ticker(self, ticker: str) -> bool:
+        """
+        Ticker bat baliozkoa den egiaztatzen du Yahoo Finance-n.
+        
+        Args:
+            ticker: Egiaztatu beharreko ticker-a
+            
+        Returns:
+            bool: True baliozkoa bada, False bestela
+        """
         try:
             info = yf.Ticker(ticker).info
             return info and 'regularMarketPrice' in info
@@ -276,31 +349,37 @@ class ETFAgent:
 
     def run_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
         """
-        Analisiak exekutatu eta JSON chunk-en zerrenda itzuli.
-        Chunk bakoitza dict bat da: testua (JSON) eta metadatuak.
+        Analisi guztiak exekutatu eta emaitzak JSON chunk-etan itzultzen ditu.
+        
+        Args:
+            base_metadata: Oinarrizko metadatuak chunk guztietarako
+            max_chars: Chunk bakoitzaren gehienezko karaktere kopurua
+            
+        Returns:
+            list: Chunk-en zerrenda, bakoitza testua eta metadatuekin
         """
         if self.tickers.__len__() <= 1:
             return []
 
         if self.data is None:
-            self.fetch_data()
+            self._fetch_data()
         if self.normalized is None:
-            self.normalize_prices()
+            self._normalize_prices()
 
         outputs = {
-            'correlation': self.compute_correlation(),
-            'momentum': self.compute_momentum(),
-            'volume': self.compare_volume(),
-            'residual': self.compute_residual(),
-            'crossovers': self.detect_crossovers(),
-            'regression': self.regression_analysis()
+            'correlation': self._compute_correlation(),
+            'momentum': self._compute_momentum(),
+            'volume': self._compare_volume(),
+            'residual': self._compute_residual(),
+            'crossovers': self._detect_crossovers(),
+            'regression': self._regression_analysis()
         }
         chunks = []
         for atype, result in outputs.items():
             payload = {'analysis_type': atype,
                        'entity': self.ticker,
                        'term': self.term,
-                       'result': self.to_json(result)}
+                       'result': self._to_json(result)}
             text = json.dumps(payload, ensure_ascii=False)
             # chunk bakarrean sartzen bada
             if len(text) <= max_chars:

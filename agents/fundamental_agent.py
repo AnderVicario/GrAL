@@ -6,14 +6,22 @@ import yfinance as yf
 
 
 class FundamentalAnalysisAgent:
-    def __init__(
-            self,
-            company: str,
-            ticker: str,
-            sector: str,
-            start_date: str = None,
-            end_date: str = None
-    ):
+    """
+    Enpresa baten funtsezko analisia burutzen duen agentea.
+    Yahoo Finance-tik datuak eskuratzen ditu eta finantza-egoeren analisi sakona egiten du.
+    """
+
+    def __init__(self, company: str, ticker: str, sector: str, start_date: str = None, end_date: str = None):
+        """
+        FundamentalAnalysisAgent-aren hasieratzailea.
+        
+        Args:
+            company (str): Enpresaren izena
+            ticker (str): Enpresaren burtsa sinboloa
+            sector (str): Enpresaren sektorea
+            start_date (str, aukerazkoa): Hasiera data 'YYYY-MM-DD' formatuan
+            end_date (str, aukerazkoa): Amaiera data 'YYYY-MM-DD' formatuan
+        """
         self.company = company
         self.ticker = ticker
         self.sector = sector
@@ -34,16 +42,22 @@ class FundamentalAnalysisAgent:
 
     def _parse_date_span(self):
         """
-        Maiztasuna ("hiru hilean behin" edo "urtero") eta iraganeko txostenen kopurua erabaki.
-        hasiera-dataren eta amaiera-dataren arteko span oinarrituta:
+        Analisiaren maiztasuna eta txosten kopurua kalkulatzen du denbora tartearen arabera.
+        
+        Returns:
+            tuple: (maiztasuna, txosten_kopurua)
+                - maiztasuna: "quarterly" edo "yearly"
+                    Maiztasuna ("hiru hilean behin" edo "urtero") eta iraganeko txostenen kopurua erabaki.
+                    hasiera-dataren eta amaiera-dataren arteko span oinarrituta:
 
-        30 egun → hiru hilean behin, 2 aldi
-        - 31-120 egun → hiru hilean behin, 3 aldi
-        - 121-364 egun → hiru hilean behin, 4 aldi
-        - 365-730 egun → urtean, 3 aldi
-        - > 730 egun → urtean, 5 aldi
+                    30 egun → hiru hilean behin, 2 aldi
+                    - 31-120 egun → hiru hilean behin, 3 aldi
+                    - 121-364 egun → hiru hilean behin, 4 aldi
+                    - 365-730 egun → urtean, 3 aldi
+                    - > 730 egun → urtean, 5 aldi
 
-        Dataren bat falta bada edo baliorik ez badu, urteroko akatsa, 3.
+                    Dataren bat falta bada edo baliorik ez badu, urteroko akatsa, 3.
+                - txosten_kopurua: 2-5 arteko zenbakia
         """
         if not self.start_date or not self.end_date:
             return "yearly", 3
@@ -59,7 +73,16 @@ class FundamentalAnalysisAgent:
             return "yearly", 3
         return "yearly", 5
 
-    def fetch_company_data(self):
+    def _fetch_company_data(self):
+        """
+        Yahoo Finance-tik enpresaren datu guztiak eskuratzen ditu:
+        - Oinarrizko informazioa (izena, sektorea, etab.)
+        - Merkatuko adierazleak (P/E, ROE, etab.)
+        - Finantza-egoerak (galdu-irabaziak, balantzea, diru-fluxua)
+        
+        Returns:
+            bool: True datuak ondo eskuratu badira, False bestela
+        """
         try:
             company = yf.Ticker(self.ticker)
             info = company.info
@@ -108,6 +131,16 @@ class FundamentalAnalysisAgent:
             return False
 
     def _format_financial_data(self, df, n_reports):
+        """
+        Finantza-datuak formateatu eta txukuntzen ditu.
+        
+        Args:
+            df (pd.DataFrame): Formateatu beharreko finantza-datuak
+            n_reports (int): Mantendu beharreko txosten kopurua
+            
+        Returns:
+            pd.DataFrame: Formateatutako datuak, zenbakiak milioi unitateetan
+        """
         if df is None or df.empty:
             return pd.DataFrame()
 
@@ -124,7 +157,16 @@ class FundamentalAnalysisAgent:
 
         return selected
 
-    def calculate_key_metrics(self):
+    def _calculate_key_metrics(self):
+        """
+        Funtsezko metrika finantzarioak kalkulatzen ditu eskuragarri dauden datuetatik:
+        - Mozkin marjina garbia
+        - Diru-sarreren hazkundea
+        - Zor ratioa
+        
+        Returns:
+            dict: Kalkulatutako metriken hiztegia
+        """
         metrics = {}
 
         # Beharrezko datuak baditugu bakarrik kalkulatu metrikak
@@ -166,7 +208,19 @@ class FundamentalAnalysisAgent:
         return metrics
 
     def process(self):
-        if not self.fetch_company_data():
+        """
+        Analisi osoa exekutatzen du eta emaitzak txosten batean biltzen ditu.
+        
+        Returns:
+            dict: Analisi txostena, ondorengo atalak dituena:
+                - Enpresaren informazioa
+                - Analisiaren parametroak
+                - Finantza-egoerak
+                - Metrika gehigarriak
+                
+            Erroreren bat gertatuz gero, errore mezua itzultzen du
+        """
+        if not self._fetch_company_data():
             return {"status": "error", "message": f"Failed to fetch data for {self.ticker}"}
 
         # Formateatu irteerako finantza-egoerak
@@ -175,7 +229,7 @@ class FundamentalAnalysisAgent:
         cash_flow = self._format_financial_data(self.cash_flow, self.n_reports)
 
         # Metrika gehigarriak kalkulatu
-        additional_metrics = self.calculate_key_metrics()
+        additional_metrics = self._calculate_key_metrics()
 
         # Analisi-txosten osoa sortu
         analysis_report = {

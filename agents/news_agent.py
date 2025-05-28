@@ -10,8 +10,28 @@ from together import Together
 
 
 class NewsAnalysisAgent:
+    """
+    NewsAnalysisAgent klasea entitate baten inguruko albisteen bilaketa eta analisia egiteko erabiltzen da.
+    Albisteak bilatu, prozesatu eta sentimendu analisia egiten du, bai ingelesez bai espainieraz.
+    """
+
     def __init__(self, entity, search_terms, primary_language, start_date, end_date,
                  sector=None, country=None, advanced_mode=False, max_results=20, search_mode="scraping"):
+        """
+        NewsAnalysisAgent-aren hasieratzailea.
+        
+        Args:
+            entity: Aztertu beharreko entitatearen izena
+            search_terms: Bilaketa termino gehigarriak
+            primary_language: Lehentasunezko hizkuntza (adib. "es", "en")
+            start_date: Hasiera data
+            end_date: Amaiera data
+            sector: Entitatearen sektorea (aukerazkoa)
+            country: Entitatearen herrialdea (aukerazkoa)
+            advanced_mode: Bilaketa aurreratua aktibatu (aukerazkoa)
+            max_results: Gehienezko emaitza kopurua (aukerazkoa)
+            search_mode: Bilaketa modua ("gnews" edo "scraping")
+        """
         self.entity = entity
         self.sector = sector
         self.country = country
@@ -27,6 +47,16 @@ class NewsAnalysisAgent:
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
 
     def process_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
+        """
+        Albisteak bilatu, prozesatu eta zatitan banatzen ditu.
+        
+        Args:
+            base_metadata: Oinarrizko metadatuak
+            max_chars: Zati bakoitzaren gehienezko karaktere kopurua
+            
+        Returns:
+            list: Albisteen zatiak eta sentimendu analisiaren emaitzak
+        """
         articles = []
         queries = self._generate_queries()
         logging.info(f"Generated queries for entity '{self.entity}': {queries} Time range: {self.start_date} to {self.end_date}")
@@ -100,6 +130,12 @@ class NewsAnalysisAgent:
         return headline_outputs + [sentiment_output]
 
     def _generate_queries(self):
+        """
+        Bilaketa kontsultak sortzen ditu entitatearen informazioa erabiliz.
+        
+        Returns:
+            list: Sortutako bilaketa kontsulten zerrenda
+        """
         queries = [self.entity]
 
         if self.country:
@@ -130,12 +166,31 @@ class NewsAnalysisAgent:
         return queries
 
     def _search_english(self, query):
+        """
+        Ingelesezko albisteen bilaketa egiten du.
+        
+        Args:
+            query: Bilaketa kontsulta
+            
+        Returns:
+            list: Aurkitutako albisteen zerrenda
+        """
         if self.search_mode == "gnews":
             return self._search_gnews(query, "en")
         else:
             return self._scrape_news(query, "en")
 
     def _search_gnews(self, query, language):
+        """
+        GNews API bidez albisteak bilatzen ditu.
+        
+        Args:
+            query: Bilaketa kontsulta
+            language: Bilaketa hizkuntza
+            
+        Returns:
+            list: GNews-etik jasotako albisteak
+        """
         try:
             client = GNews(
                 language=language,
@@ -149,6 +204,16 @@ class NewsAnalysisAgent:
             return []
 
     def _scrape_news(self, query, language):
+        """
+        Google News-etik albisteak eskuratzen ditu web scraping bidez.
+        
+        Args:
+            query: Bilaketa kontsulta
+            language: Bilaketa hizkuntza
+            
+        Returns:
+            list: Scraped albisteen zerrenda
+        """
         try:
             query_encoded = urllib.parse.quote_plus(query)
             base_url = f"https://news.google.com/rss/search?q={query_encoded}"
@@ -184,6 +249,15 @@ class NewsAnalysisAgent:
             return []
 
     def _remove_duplicates(self, articles):
+        """
+        Albiste errepikatuak ezabatzen ditu.
+        
+        Args:
+            articles: Albisteen zerrenda
+            
+        Returns:
+            list: Albiste bakarren zerrenda
+        """
         seen = set()
         unique_articles = []
         for article in articles:
@@ -193,6 +267,15 @@ class NewsAnalysisAgent:
         return unique_articles
 
     def _sentiment_analysis(self, headlines):
+        """
+        Albisteen titularren sentimendu analisia burutzen du.
+        
+        Args:
+            headlines: Aztertu beharreko titularrak
+            
+        Returns:
+            str: Sentimendu analisiaren emaitza (positibo, neutral eta negatiboen kopuruak)
+        """
         print(headlines)
         prompt = f"""
         Your task is to analyze the sentiment of a series of financial news headlines. You will receive multiple headlines and must perform a sentiment analysis for each one according to these strict rules:

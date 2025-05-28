@@ -5,7 +5,26 @@ from together import Together
 
 
 class AnalysisAgent:
-    def __init__(self, user_prompt, date_range, context=None):
+    """
+    Finantza-analisi sakonak sortzeko agente adimenduna.
+    Erabiltzailearen kontsultak eta testuinguruko informazioa erabiliz, 
+    epe ertain-luzeko errentagarritasun aurreikuspenak egiten ditu.
+    """
+
+    def __init__(self, user_prompt: str, date_range: str, context: str = None):
+        """
+        AnalysisAgent-aren hasieratzailea.
+        
+        Args:
+            user_prompt: Erabiltzailearen kontsulta
+            date_range: Analisiaren denbora tartea
+            context: Testuinguruko informazioa (aukerazkoa):
+                    - Finantza-egoerak
+                    - Sektore-txostenak
+                    - AMIA (SWOT) analisiak
+                    - KPI taulak
+                    - etab.
+        """
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.user_prompt = user_prompt
@@ -13,7 +32,36 @@ class AnalysisAgent:
         self.date_range = date_range
         self.context = context
 
-    def generate_final_analysis(self):
+    def generate_final_analysis(self) -> str:
+        """
+        Analisi osoa sortzen du LLM eredua erabiliz. 
+        Emaitza hiru atal nagusitan egituratzen da:
+        
+        1. Laburpen Exekutiboa:
+           - Helburuaren berrazalpena
+           - Goi-mailako ondorioa
+           
+        2. Analisi Xehatua:
+           - Adierazle Gakoak (5-7 metriken aukeraketa eta justifikazioa)
+           - Emaitza Kuantitatiboak (NPV, IRR, estres-probak, ratio-konparaketak)
+           - Ikuspegi Kualitatiboak (industria, erregulazio-ingurunea, lehiakortasuna)
+           
+        3. Ondorioak eta Ekintza Plana:
+           - Errentagarritasun probabilitatea: Altua/Ertaina/Baxua
+           - 3-5 gomendio zehatz errendimendua hobetzeko edo arriskuak murrizteko
+        
+        Returns:
+            str: Analisi osoa testu formatuan, pentsamendu-kateak kenduta
+                 (<think>...</think> etiketak ezabatuta)
+        
+        Raises:
+            ValueError: Testuinguruko informazio nahikorik ez badago
+        
+        Notes:
+            - Datuen analisian oinarritutako ikuspegiak lehenesten dira
+            - Formatua argia eta zehatza da, puntu edo taula txikiak erabiliz
+            - Hizkera profesionala baina ulerterraza erabiltzen da
+        """
         prompt = f"""
         You are a top-tier financial analysis agent with deep market insight, multistep reasoning, and advanced quantitative skills. Your goal is to assess whether any given financial entity is likely to be profitable over the medium to long term, and to deliver a clear, data-driven recommendation.
 
