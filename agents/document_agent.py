@@ -416,27 +416,36 @@ class VectorMongoDB:
     def add_documents(self, chunks: List[dict]):
         """
         Dokumentu zatiak bektorizatu eta MongoDB-n gordetzen ditu.
-        
+
         Args:
             chunks: Dokumentu zatien zerrenda, bakoitza bere metadatuekin
         """
-        texts = [chunk["text"] for chunk in chunks]
-        embeddings = list(self.embedder.embed(texts))
+        texts = [str(chunk["text"]) for chunk in chunks]
+        texts = [text for text in texts if text]
 
-        docs = []
-        for chunk, emb in zip(chunks, embeddings):
-            doc = {
-                "text": chunk["text"],
-                "embedding": emb.tolist(),
-                "metadata": chunk.get("metadata", {})
-            }
-            docs.append(doc)
+        if not texts:
+            logging.warning("No valid texts to embed")
+            return
 
         try:
-            self.coll.insert_many(docs)
-            logging.info(f"Inserted {len(docs)} docs in '{self.coll.name}'")
+            embeddings = list(self.embedder.embed(texts))
+
+            docs = []
+            for chunk, emb in zip(chunks, embeddings):
+                doc = {
+                    "text": str(chunk["text"]),
+                    "embedding": emb.tolist(),
+                    "metadata": chunk.get("metadata", {})
+                }
+                docs.append(doc)
+
+            if docs:
+                self.coll.insert_many(docs)
+                logging.info(f"Inserted {len(docs)} docs in '{self.coll.name}'")
+
         except Exception as e:
-            logging.error(f"Insertion error: {e}")
+            logging.error(f"Insertion error: {str(e)}")
+            raise
 
     def semantic_search(self, query: str, k: int = 10, num_candidates: int = 100) -> List[dict]:
         """

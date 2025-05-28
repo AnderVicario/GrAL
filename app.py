@@ -105,7 +105,7 @@ def index():
                             vector_db.add_documents([doc])
 
                     except Exception as e:
-                        print(f"Error procesando documento: {str(e)}")
+                        print(f"Error processing document: {str(e)}")
                         continue
 
         if user_input:
