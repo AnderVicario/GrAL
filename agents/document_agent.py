@@ -157,7 +157,7 @@ class DocumentProcessor:
             self._nlp = spacy.load(self._language_model)
         return self._nlp
 
-    def chunk_text(self, text: str, chunk_size: int = 1024, overlap: int = 128) -> List[dict]:
+    def chunk_text(self, text: str, chunk_size: int = 1024, overlap: int = 128) -> list[str]:
         """
         Testua zatitzen du aukeratutako metodoaren arabera.
         
@@ -174,15 +174,14 @@ class DocumentProcessor:
         else:
             return self._basic_chunk(text, chunk_size, overlap)
 
-    def _basic_chunk(self, text: str, chunk_size: int, overlap: int) -> List[dict]:
+    def _basic_chunk(self, text: str, chunk_size: int, overlap: int) -> List[str]:
         """Oinarrizko zatiketarako metodoa"""
 
-        def get_semantic_chunks(text: str) -> List[tuple]:
+        def get_semantic_chunks(text: str) -> List[str]:
             lines = text.split('\n')
             chunks = []
             current_chunk = []
             current_size = 0
-            start_idx = 0
 
             for line in lines:
                 line_size = len(line)
@@ -191,74 +190,45 @@ class DocumentProcessor:
                         current_size + line_size > chunk_size and
                         current_chunk):
                     chunk_text = '\n'.join(current_chunk)
-                    chunks.append((chunk_text, start_idx, start_idx + len(chunk_text)))
+                    chunks.append(chunk_text)
                     current_chunk = []
                     current_size = 0
-                    start_idx += len(chunk_text) + 1
 
                 current_chunk.append(line)
                 current_size += line_size + 1
 
             if current_chunk:
                 chunk_text = '\n'.join(current_chunk)
-                chunks.append((chunk_text, start_idx, start_idx + len(chunk_text)))
+                chunks.append(chunk_text)
 
             return chunks
 
-        semantic_chunks = get_semantic_chunks(text)
-        return [
-            {
-                "text": chunk[0],
-                "metadata": ChunkMetadata(
-                    start_idx=chunk[1],
-                    end_idx=chunk[2]
-                )
-            }
-            for chunk in semantic_chunks
-        ]
+        return get_semantic_chunks(text)
 
-    def _spacy_chunk(self, text: str, chunk_size: int, overlap: int) -> List[dict]:
+    def _spacy_chunk(self, text: str, chunk_size: int, overlap: int) -> List[str]:
         """spaCy bidezko zatiketa metodoa"""
         doc = self.nlp(text)
         chunks = []
         current_chunk = []
         current_size = 0
-        start_idx = 0
 
         for sent in doc.sents:
             sent_size = len(str(sent))
 
             if current_size + sent_size > chunk_size and current_chunk:
                 chunk_text = " ".join(str(s) for s in current_chunk)
-                chunks.append({
-                    "text": chunk_text,
-                    "metadata": ChunkMetadata(
-                        start_idx=start_idx,
-                        end_idx=start_idx + len(chunk_text),
-                        entities=self._extract_entities(current_chunk),
-                        key_phrases=self._extract_key_phrases(current_chunk)
-                    )
-                })
+                chunks.append(chunk_text)
                 current_chunk = []
                 current_size = 0
-                start_idx += len(chunk_text) + 1
 
             current_chunk.append(sent)
             current_size += sent_size + 1
 
         if current_chunk:
             chunk_text = " ".join(str(s) for s in current_chunk)
-            chunks.append({
-                "text": chunk_text,
-                "metadata": ChunkMetadata(
-                    start_idx=start_idx,
-                    end_idx=start_idx + len(chunk_text),
-                    entities=self._extract_entities(current_chunk),
-                    key_phrases=self._extract_key_phrases(current_chunk)
-                )
-            })
+            chunks.append(chunk_text)
 
-        return self._apply_overlap(chunks, overlap)
+        return chunks
 
     @staticmethod
     def _is_structural_break(line: str) -> bool:
