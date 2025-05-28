@@ -165,6 +165,7 @@ class VectorMongoDB:
             {
                 "$project": {
                     "text": 1,
+                    'metadata': 1,
                     "_id": 0
                 }
             }
