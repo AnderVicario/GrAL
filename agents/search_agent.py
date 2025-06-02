@@ -52,7 +52,7 @@ class SearchAgent:
     analisi sakonak burutzen ditu hainbat iturri erabiliz.
     """
 
-    def __init__(self, user_prompt):
+    def __init__(self, user_prompt, user_prompt_language):
         """
         SearchAgent-aren hasieratzailea.
         
@@ -65,6 +65,7 @@ class SearchAgent:
         self.llm_client = Together()
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.user_prompt = user_prompt
+        self.user_prompt_language = user_prompt_language
         self.entities = []
         self.horizon = None
         self.start_date = None
@@ -557,7 +558,7 @@ class SearchAgent:
                 context=search_results["reranked_results"]
             )
             final_report = analysis_agent.generate_final_analysis()
-            final_markdown = MarkdownAgent(user_text=final_report).generate_markdown()
+            final_markdown = MarkdownAgent(user_text=final_report, user_language=self.user_prompt_language).generate_markdown()
 
             all_reports.append({
                 "entity_name": entity.name,

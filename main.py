@@ -56,7 +56,7 @@ class ApplicationLogic:
             return "I am not able to answer that."
 
         else:
-            self.search_agent = SearchAgent(prompt)
+            self.search_agent = SearchAgent(response["translated_prompt"], response["language"])
             return self.search_agent.process_all(advanced_mode)
 
 

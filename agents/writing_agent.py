@@ -12,7 +12,7 @@ class MarkdownAgent:
     irakurgarritasuna hobetzeko.
     """
 
-    def __init__(self, user_text: str):
+    def __init__(self, user_text: str, user_language: str):
         """
         MarkdownAgent-aren hasieratzailea.
         
@@ -27,6 +27,7 @@ class MarkdownAgent:
         self.llm_client = Together()
         self.model_name = "meta-llama/Llama-Vision-Free"
         self.user_text = user_text
+        self.user_language = user_language
         self.current_date = datetime.now()
 
     def generate_markdown(self) -> str:
@@ -79,7 +80,7 @@ class MarkdownAgent:
             ```
         """
         prompt = f"""
-        You are a writing assistant that formats plain text into clean Markdown.
+        You are a writing assistant that formats plain text into clean Markdown. If necesary translate the output to: {self.user_language}.
 
         Rules:
         - Use only `##` headers if the user clearly provides a title or section header. DO NOT use `#` headers.
