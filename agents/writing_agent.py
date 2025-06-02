@@ -80,15 +80,17 @@ class MarkdownAgent:
             ```
         """
         prompt = f"""
-        You are a writing assistant that formats plain text into clean Markdown. If necesary translate the output to: {self.user_language}.
+        You are a writing assistant that formats plain English text into clean Markdown.
+
+        First, convert the text to Markdown following the rules below. Then, if the desired language is different from English (i.e., user language -> {self.user_language} != "en"), translate the final Markdown output to user language -> {self.user_language}.
 
         Rules:
         - Use only `##` headers if the user clearly provides a title or section header. DO NOT use `#` headers.
-        - Do not invent titles, summaries, conclusions, or reasoning, ONLY convert to Markdown.
+        - Do not invent titles, summaries, conclusions, or reasoning. ONLY convert to Markdown.
         - Emphasize important keywords with **bold** and use *italics* for special terms.
-        - Convert lists into Markdown lists with `-`, do not use `|`.
-        - Preserve the original structure and relevant information; remove only null or invalid details.
-        - Do not explain your formatting decisions; just output the formatted Markdown.
+        - Convert lists into Markdown lists with `-`. Do not use tables or other formats.
+        - Preserve the original structure and relevant information. Remove only null or irrelevant details.
+        - Output only the final Markdown text, in the appropriate language. Do not explain or comment on your process.
 
         Assume today's date is: {self.current_date}.
 
