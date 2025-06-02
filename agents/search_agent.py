@@ -493,42 +493,44 @@ class SearchAgent:
             entity.add_documents(news_docs)
 
             # 2. Funtsezko analisia
-            fundamental_agent = FundamentalAnalysisAgent(
-                company=entity.name,
-                ticker=entity.ticker,
-                sector=entity.sector,
-                start_date=self.start_date,
-                end_date=self.end_date
-            )
-            fundamental_result = fundamental_agent.process()
-            fundamental_markdown = MarkdownAgent(user_text=fundamental_result).generate_markdown()
+            if entity.ticker:
+                fundamental_agent = FundamentalAnalysisAgent(
+                    company=entity.name,
+                    ticker=entity.ticker,
+                    sector=entity.sector,
+                    start_date=self.start_date,
+                    end_date=self.end_date
+                )
+                fundamental_result = fundamental_agent.process()
+                fundamental_markdown = MarkdownAgent(user_text=fundamental_result).generate_markdown()
 
-            # Zatitu eta igo chunk-ak
-            fund_chunks = chunk_text(fundamental_markdown)
-            for i, chunk in enumerate(fund_chunks):
-                doc = {
-                    "text": chunk,
-                    "metadata": {
-                        **base_metadata,
-                        "analysis_type": "fundamental",
-                        "chunk_number": i + 1,
-                        "total_chunks": len(fund_chunks),
-                        "source": "FundamentalAnalysisAgent"
+                # Zatitu eta igo chunk-ak
+                fund_chunks = chunk_text(fundamental_markdown)
+                for i, chunk in enumerate(fund_chunks):
+                    doc = {
+                        "text": chunk,
+                        "metadata": {
+                            **base_metadata,
+                            "analysis_type": "fundamental",
+                            "chunk_number": i + 1,
+                            "total_chunks": len(fund_chunks),
+                            "source": "FundamentalAnalysisAgent"
+                        }
                     }
-                }
-                entity.add_documents([doc])
+                    entity.add_documents([doc])
 
             # 3. ETF analisia
-            etf_agent = ETFAgent(
-                name=entity.name,
-                ticker=entity.ticker,
-                sector=entity.sector,
-                start_date=self.start_date,
-                end_date=self.end_date
-            )
-            etf_docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
-            if etf_docs:
-                entity.add_documents(etf_docs)
+            if entity.ticker:
+                etf_agent = ETFAgent(
+                    name=entity.name,
+                    ticker=entity.ticker,
+                    sector=entity.sector,
+                    start_date=self.start_date,
+                    end_date=self.end_date
+                )
+                etf_docs = etf_agent.run_and_chunk(base_metadata=base_metadata)
+                if etf_docs:
+                    entity.add_documents(etf_docs)
 
             # 4. Makro analisia
             macro_agent = MacroeconomicAnalysisAgent(
