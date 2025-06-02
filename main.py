@@ -3,11 +3,13 @@ from typing import List, Dict
 
 from agents.document_agent import DocumentAgent, DocumentProcessor, VectorMongoDB
 from agents.search_agent import SearchAgent
+from agents.inspection_agent import InspectionAgent
 
 
 class ApplicationLogic:
     def __init__(self):
         self.doc_agent = DocumentAgent()
+        self.inspection_agent = InspectionAgent()
         self.search_agent = None
 
     async def process_document(self, filepath: str, filename: str) -> None:
@@ -44,10 +46,18 @@ class ApplicationLogic:
         except Exception as e:
             raise Exception(f"Error processing document: {str(e)}")
 
-    def process_query(self, prompt: str, advanced_mode: bool = False) -> List[Dict]:
+    def process_query(self, prompt: str, advanced_mode: bool = False) -> str | list:
         """Erabiltzailearen kontsulta prozesatu"""
-        self.search_agent = SearchAgent(prompt)
-        return self.search_agent.process_all(advanced_mode)
+        response = self.inspection_agent.inspect_prompt(prompt)
+        if response["classification"] == "MALICIOUS":
+            return "I am not able to answer that."
+
+        elif response["classification"] == "IRRELEVANT":
+            return "I am not able to answer that."
+
+        else:
+            self.search_agent = SearchAgent(prompt)
+            return self.search_agent.process_all(advanced_mode)
 
 
 def get_application() -> ApplicationLogic:

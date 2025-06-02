@@ -86,11 +86,20 @@ def index():
             # Logika nagusira deitu
             bot_reports = app_logic.process_query(user_input, advanced_mode)
 
-            formatted_reports = [{
-                "entity": report["entity_name"],
-                "content": markdown(report["content"], extensions=['nl2br']),
-                "ticker": report["ticker"]
-            } for report in bot_reports]
+            # Egiaztatu bot_reports lista den edo ez
+            if isinstance(bot_reports, list):
+                formatted_reports = [{
+                    "entity": report.get("entity_name", "Unknown entity"),
+                    "content": markdown(report.get("content", "No content available"), extensions=['nl2br']),
+                    "ticker": report.get("ticker", "Unknown")
+                } for report in bot_reports]
+            else:
+                # Erabiltzailearentzat mezu bat sortu bot_reports string bada
+                formatted_reports = [{
+                    "entity": "System Message",
+                    "content": bot_reports,
+                    "ticker": "-"
+                }]
 
             session['conversation'].append({
                 "sender": "1",
