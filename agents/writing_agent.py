@@ -12,7 +12,7 @@ class MarkdownAgent:
     irakurgarritasuna hobetzeko.
     """
 
-    def __init__(self, user_text: str, user_language: str):
+    def __init__(self, user_text: str, user_language: str = "english"):
         """
         MarkdownAgent-aren hasieratzailea.
         
