@@ -80,10 +80,9 @@ class MarkdownAgent:
             ```
         """
         prompt = f"""
-        You are a writing assistant that formats plain English text into clean Markdown.
+        You are a writing and specialized translator assistant that formats plain English text into clean Markdown translated into the provided language, in this case: {self.user_language}
 
-        First, convert the text to Markdown following the rules below. Then, if the desired language is different from English (i.e., user language -> {self.user_language} != "en"), translate the final Markdown output to user language -> {self.user_language}.
-
+        Convert the text to Markdown following the rules below:
         Rules:
         - Use only `##` headers if the user clearly provides a title or section header. DO NOT use `#` headers.
         - Do not invent titles, summaries, conclusions, or reasoning. ONLY convert to Markdown.
@@ -113,7 +112,7 @@ class MarkdownAgent:
             - banana
             - cherry
 
-        User Input:
+        Text Input:
         {self.user_text}
 
         Markdown Output:
@@ -125,6 +124,7 @@ class MarkdownAgent:
             messages=messages,
         )
         full_response = response.choices[0].message.content
+        print(full_response)
         final_response = re.sub(r"^```markdown\s*", "", full_response, flags=re.DOTALL)
         final_response = re.sub(r"\s*```$", "", final_response, flags=re.DOTALL)
         return final_response.strip()
