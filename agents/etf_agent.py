@@ -10,6 +10,17 @@ from sklearn.linear_model import LinearRegression
 from together import Together
 
 
+def _is_valid_ticker(ticker: str) -> bool:
+    """
+    Egiaztatu ea ticker-ak benetako prezio-datuak dituen.
+    """
+    try:
+        hist = yf.Ticker(ticker).history(period="5d")
+        return not hist.empty
+    except Exception:
+        return False
+
+
 class ETFAgent:
     """
     ETFAgent klasea entitate finantzario bat eta harekin erlazionatutako ETF-en analisia egiteko.
@@ -34,7 +45,7 @@ class ETFAgent:
         self.ticker = ticker
         self.sector = sector
         self.etfs = self._identify_etfs()
-        self.etfs = [t for t in self.etfs if self._is_valid_ticker(t)]
+        self.etfs = [t for t in self.etfs if _is_valid_ticker(t)]
         self.tickers = [ticker] + self.etfs
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date) if end_date else pd.Timestamp.today()
@@ -331,22 +342,6 @@ class ETFAgent:
         if isinstance(obj, dict): return {k: self._to_json(v) for k, v in obj.items()}
         return obj
 
-    def _is_valid_ticker(self, ticker: str) -> bool:
-        """
-        Ticker bat baliozkoa den egiaztatzen du Yahoo Finance-n.
-        
-        Args:
-            ticker: Egiaztatu beharreko ticker-a
-            
-        Returns:
-            bool: True baliozkoa bada, False bestela
-        """
-        try:
-            info = yf.Ticker(ticker).info
-            return info and 'regularMarketPrice' in info
-        except Exception:
-            return False
-
     def run_and_chunk(self, base_metadata: dict, max_chars: int = 1500) -> list:
         """
         Analisi guztiak exekutatu eta emaitzak JSON chunk-etan itzultzen ditu.
@@ -394,7 +389,9 @@ class ETFAgent:
                     chunks.append({'text': part, 'metadata': meta})
         return chunks
 
+#
 # if __name__ == '__main__':
+#     print(_is_valid_ticker('TU=F'))
 #     # Adibideko parametroak
 #     from dotenv import load_dotenv
 #     load_dotenv()
