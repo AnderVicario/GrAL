@@ -45,7 +45,9 @@ class ETFAgent:
         self.ticker = ticker
         self.sector = sector
         self.etfs = self._identify_etfs()
+        print("All etfs: " + str(self.etfs))
         self.etfs = [t for t in self.etfs if _is_valid_ticker(t)]
+        print("Valid etfs: " + str(self.etfs))
         self.tickers = [ticker] + self.etfs
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date) if end_date else pd.Timestamp.today()
@@ -354,6 +356,9 @@ class ETFAgent:
             list: Chunk-en zerrenda, bakoitza testua eta metadatuekin
         """
         if self.tickers.__len__() <= 1:
+            return []
+
+        if not _is_valid_ticker(self.ticker):
             return []
 
         if self.data is None:

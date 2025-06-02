@@ -85,6 +85,8 @@ class SearchAgent:
         The query can refer to one or several companies, and it may also include other types of financial entities such as cryptocurrencies, funds, ETFs, or other investment vehicles.
         If the query does not explicitly mention any entity, you must suggest several relevant entities based on the context of the question.
 
+        IMPORTANT: Only include entities that have a known and valid ticker or symbol. Do not include entities that does not have a ticker (e.g. regulatory bodies, banks as institutions, general indices, or indicators), do not include them in the response.
+
         # Symbol format on Yahoo Finance by asset type:
         # - Companies / Stocks:
         #   - US: ticker only, e.g. "AAPL" (Apple)
