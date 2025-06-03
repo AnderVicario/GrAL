@@ -124,7 +124,7 @@ class MarkdownAgent:
             messages=messages,
         )
         full_response = response.choices[0].message.content
-        print(full_response)
+        # print(full_response)
         final_response = re.sub(r"^```markdown\s*", "", full_response, flags=re.DOTALL)
         final_response = re.sub(r"\s*```$", "", final_response, flags=re.DOTALL)
         return final_response.strip()

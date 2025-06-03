@@ -554,7 +554,7 @@ class SearchAgent:
 
             analysis_agent = AnalysisAgent(
                 user_prompt=distil_query,
-                date_range=self.date_range,
+                horizon=self.horizon,
                 context=search_results["reranked_results"]
             )
             final_report = analysis_agent.generate_final_analysis()

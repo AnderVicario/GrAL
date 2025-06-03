@@ -11,13 +11,13 @@ class AnalysisAgent:
     epe ertain-luzeko errentagarritasun aurreikuspenak egiten ditu.
     """
 
-    def __init__(self, user_prompt: str, date_range: str, context: str = None):
+    def __init__(self, user_prompt: str, horizon: str, context: str = None):
         """
         AnalysisAgent-aren hasieratzailea.
         
         Args:
             user_prompt: Erabiltzailearen kontsulta
-            date_range: Analisiaren denbora tartea
+            horizon: Analisiaren denbora tartea
             context: Testuinguruko informazioa (aukerazkoa):
                     - Finantza-egoerak
                     - Sektore-txostenak
@@ -29,7 +29,7 @@ class AnalysisAgent:
         self.model_name = "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
         self.user_prompt = user_prompt
         self.current_date = datetime.now()
-        self.date_range = date_range
+        self.horizon = horizon
         self.context = context
 
     def generate_final_analysis(self) -> str:
@@ -69,6 +69,7 @@ class AnalysisAgent:
         1. INPUTS YOU WILL RECEIVE
         - A **user query** describing what they want to know.
         - Zero or more **context attachments** (financial statements, sector reports, SWOT analyses, KPI spreadsheets, etc.).
+        - A clearly defined **temporal horizon** (e.g., short-term, medium-term, long-term). Always align your analysis with this horizon.
 
         2. WORKFLOW
         1. **Context Validation**  
@@ -76,7 +77,7 @@ class AnalysisAgent:
                 “I need more detailed financial data or sector-specific documents to perform a thorough analysis. Please attach relevant reports or datasets.”
             - Otherwise, proceed to steps 2–5.
         2. **Executive Summary**  
-            - In 2–3 sentences, restate the user’s objective and your high-level verdict.
+            - In 2–3 sentences, restate the user’s objective, explicitly acknowledge the temporal horizon provided, and give your high-level verdict.
         3. **Key Indicators Selection**  
             - Identify the 5–7 most relevant metrics (e.g., ROE, EBITDA margin, debt/equity, free cash flow, beta, DCF inputs).  
             - For each, include a one-line justification.
@@ -112,6 +113,7 @@ class AnalysisAgent:
 
         User prompt: {self.user_prompt}
         Context: {self.context}
+        Time horizon: {self.horizon}
         
         """
         messages = [{"role": "user", "content": prompt}]
@@ -131,4 +133,5 @@ class AnalysisAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
+        print(full_response)
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
