@@ -49,19 +49,17 @@ def set_lang(lang):
     return redirect(url_for("index"))
 
 
-@app.route('/toggle_advanced', methods=['POST'])
-def toggle_advanced():
-    session['advanced_mode'] = not session.get('advanced_mode', False)
-    return redirect(url_for("index"))
-
-
 @app.route("/", methods=["GET", "POST"])
 def index():
     lang_code = session.get('app_language', 'en_US')
     translations = languages.get(lang_code, {})
-    advanced_mode = session.get('advanced_mode', False)
 
     if request.method == "POST":
+        # Modu aurreratua formulariotik lortu
+        is_advanced = request.form.get('advanced_mode') == 'true'
+        # Saioan gorde
+        session['advanced_mode'] = is_advanced
+
         # Fitxategien prozesatzea
         if 'file' in request.files:
             files = request.files.getlist('file')
@@ -84,7 +82,7 @@ def index():
             })
 
             # Logika nagusira deitu
-            bot_reports = app_logic.process_query(user_input, advanced_mode)
+            bot_reports = app_logic.process_query(user_input, is_advanced)
 
             # Egiaztatu bot_reports lista den edo ez
             if isinstance(bot_reports, list):
@@ -113,7 +111,8 @@ def index():
 
     return render_template("index.html",
                            translations=translations,
-                           conversation=session.get('conversation', []))
+                           conversation=session.get('conversation', []),
+                           advanced_mode=session.get('advanced_mode', False))
 
 
 if __name__ == "__main__":

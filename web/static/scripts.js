@@ -12,15 +12,27 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// === Modu aurreratuaren aktibazioa ===
-let isAdvancedMode = false;
+// === Modu aurreratuaren aktibazioa (solo interfaz) ===
 const advancedToggle = document.getElementById('advancedToggle');
-const advancedIcon   = document.getElementById('advancedIcon');
+const advancedIcon = document.getElementById('advancedIcon');
+
+// Formularioaren input hasierako egoera
+let isAdvancedMode = document.getElementById('advancedModeInput').value === 'true';
+
+// Eguneratu kolorea hasieran
+advancedIcon.classList.toggle('text-[#607AFB]', isAdvancedMode);
+advancedIcon.classList.toggle('text-[#D5D6DD]', !isAdvancedMode);
 
 advancedToggle.addEventListener('click', () => {
   isAdvancedMode = !isAdvancedMode;
+  
+  // Bakarrik interfazea eguneratu
   advancedIcon.classList.toggle('text-[#607AFB]', isAdvancedMode);
   advancedIcon.classList.toggle('text-[#D5D6DD]', !isAdvancedMode);
+  
+  // Eremu ezkutua eguneratu
+  document.getElementById('advancedModeInput').value = isAdvancedMode;
+  console.log("Advanced mode: " + isAdvancedMode + "")
 });
 
 // === Inprimakia bidali eta karga‐ikonoa erakutsi ===
@@ -41,7 +53,6 @@ form.addEventListener('submit', (e) => {
   submitBtn.classList.add('opacity-75');
 
   const data = new FormData(form);
-  data.append('advanced_mode', isAdvancedMode);
 
   fetch(form.action, {
     method: form.method,

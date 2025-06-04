@@ -9,7 +9,7 @@
     />
 
     <title>{{ translations.title }}</title>
-    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
+    <link rel="icon" type="image/x-icon" href="../static/img/favicon.ico" />
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   </head>
@@ -51,15 +51,30 @@
                         {{ message.message }}
                       </p>
                     </div>
-                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'>
+                    <div class="flex items-center justify-center aspect-square bg-[#607AFB] rounded-full w-10 shrink-0 text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-user">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0" />
+                            <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+                        </svg>
                     </div>
                   </div>
                 {% elif message.type == "multi_report" %}
                   <!-- Bot messages with carousel for multi_report -->
                   <div class="flex items-start gap-3 p-4">
-                    <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full w-10 shrink-0"
-                         style='background-image: url("https://cdn.usegalileo.ai/sdxl10/014920d7-e0b4-4ffa-823a-811dd0d3cdbc.png");'>
+                    <div class="flex items-center justify-center aspect-square bg-[#3C3F4A] rounded-full w-10 shrink-0 text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-robot">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                            <path d="M6 4m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z" />
+                            <path d="M12 2v2" />
+                            <path d="M9 12v9" />
+                            <path d="M15 12v9" />
+                            <path d="M5 16l4 -2" />
+                            <path d="M15 14l4 2" />
+                            <path d="M9 18h6" />
+                            <path d="M10 8v.01" />
+                            <path d="M14 8v.01" />
+                        </svg>
                     </div>
                     <div class="flex flex-1 flex-col gap-1">
                       <p class="text-[#D5D6DD] text-[13px] font-normal leading-normal max-w-[360px]">
@@ -81,7 +96,7 @@
                                   {{ report.content | safe }}
                                 </div>
                                 
-                                <!-- Controles e indicador -->
+                                <!-- Controls and indicator -->
                                 <div class="flex items-center justify-center gap-2 mt-2">
                                   <button class="carousel-prev bg-[#2D2F36] rounded-full p-1 hover:bg-[#607AFB] transition-colors">
                                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,6 +131,9 @@
 
             <div class="sticky bottom-0 left-0 right-0 flex items-center px-4 py-3 gap-3 @container bg-[#1C1D22]">
               <form method="POST" action="{{ url_for('index') }}" enctype="multipart/form-data" class="w-full flex gap-3">
+                <!-- Campo oculto para el estado avanzado -->
+                <input type="hidden" name="advanced_mode" id="advancedModeInput" value="{{ 'true' if session.get('advanced_mode', False) else 'false' }}">
+                
                 <label class="flex flex-col min-w-40 h-12 flex-1">
                     <div class="flex w-full flex-1 items-stretch rounded-xl h-full">
                         <input
