@@ -38,6 +38,10 @@ TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 load_dotenv()
 _client = MongoClient(MONGODB_URI, server_api=ServerApi('1'))
 _db = _client[MONGODB_DB]
+existing_dbs = _client.list_database_names()
+if MONGODB_DB not in existing_dbs:
+    _db.create_collection("global_reports")
+    logging.info(f"Database '{MONGODB_DB}' created with global_reports collection.")
 
 
 class DocumentAgent:
