@@ -1,6 +1,7 @@
 data/
 db/
 .venv/
+venv/
 .env
 __pycache__/
 flask_session/

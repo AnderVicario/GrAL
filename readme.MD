@@ -15,7 +15,7 @@ Aplikazio honek **Flask** erabiltzen du Backend bezala.
 
 Ziurtatu honakoak instalatuta dituzula:  
 
-- **Python 3.10+** 
+- **Python 3.10** 
 - **Docker eta Docker Compose** (instalazioa errazteko, hautazkoa)  
 
 ---
