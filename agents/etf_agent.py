@@ -49,7 +49,7 @@ class ETFAgent:
         self.etfs = [t for t in self.etfs if _is_valid_ticker(t)]
         print("Valid etfs: " + str(self.etfs))
         self.tickers = [ticker] + self.etfs
-        self.start_date = pd.to_datetime(start_date)
+        self.start_date = pd.to_datetime(start_date) if start_date else pd.to_datetime('2023-01-01')
         self.end_date = pd.to_datetime(end_date) if end_date else pd.Timestamp.today()
         self.data = None
         self.normalized = None
