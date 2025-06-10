@@ -639,3 +639,39 @@ class SearchAgent:
         return {
             "reranked_results": final_results
         }
+
+    def _fallback_parsing(self, response_text):
+        """
+        JSON analisia huts egiten duenean entitate informazioa analizatzeko ordezko mekanismoa eskaintzen du.
+        Regex patroiak edo beste heuristikak erabiliz entitatearen datuak ateratzen saiatzen da.
+        
+        Args:
+            response_text (str): Analizatzeko testu gordina
+        """
+        logging.info("Using fallback parsing for entity extraction")
+        
+        # Try to find entity information using regex patterns
+        entity_patterns = re.finditer(r'"name":\s*"([^"]+)".*?"ticker":\s*"([^"]+)"', response_text, re.DOTALL)
+        
+        entities_found = False
+        for match in entity_patterns:
+            name = match.group(1)
+            ticker = match.group(2)
+            
+            # Create a minimal entity with the information we could extract
+            new_entity = FinancialEntity(
+                name=name,
+                ticker=ticker,
+                entity_type="unknown",  # Default values for fields we couldn't parse
+                sector=None,
+                country=None,
+                primary_language=None,
+                search_terms=None
+            )
+            self.entities.append(new_entity)
+            entities_found = True
+        
+        if entities_found:
+            logging.info(f"Fallback parsing identified {len(self.entities)} entities")
+        else:
+            logging.warning("Fallback parsing couldn't identify any entities")

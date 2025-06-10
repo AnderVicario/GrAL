@@ -113,6 +113,9 @@ class MacroeconomicAnalysisAgent:
         if self.country is None:
             return outputs
 
+        if not coco.convert(names=self.country, to='ISO2'):
+            return outputs
+
         # 1. Datu makroekonomiko gordinak bilatu eta serializatu.
         raw_payload = self._fetch_country_data()
         raw_pretty = json.dumps(raw_payload, ensure_ascii=False, indent=4)
@@ -262,6 +265,8 @@ class MacroeconomicAnalysisAgent:
         groups = [self.country]
         # Beti sartzen dugu berezko herrialdea, noski
         name_std = coco.convert(names=self.country, to='ISO2')
+        if not name_std:
+            return groups
 
         if name_std in self.EU_COUNTRIES:
             groups.append("Euro Area")
