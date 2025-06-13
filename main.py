@@ -49,6 +49,9 @@ class ApplicationLogic:
     def process_query(self, prompt: str, advanced_mode: bool = False) -> str | list:
         """Erabiltzailearen kontsulta prozesatu"""
         response = self.inspection_agent.inspect_prompt(prompt)
+        if not response:
+            return "There was an error processing your prompt. Please try again."
+
         if response["classification"] == "MALICIOUS":
             return "I am not able to answer that."
 

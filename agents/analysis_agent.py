@@ -1,5 +1,8 @@
 import re
+import json
+import csv
 from datetime import datetime
+from typing import List, Dict
 
 from together import Together
 
@@ -133,5 +136,130 @@ class AnalysisAgent:
             if hasattr(token, 'choices'):
                 content = token.choices[0].delta.content
                 full_response += content
-        print(full_response)
+        # print(full_response)
         return re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
+
+    def evaluate_analysis(self, generated_analysis: str) -> Dict:
+        """
+        Envía el análisis previo a otro LLM para evaluarlo según la rúbrica:
+        1. Clarity and coherence (0-10)
+        2. Depth of quantitative analysis (0-10)
+        3. Qualitative rigor (0-10)
+        4. Usefulness of recommendations (0-10)
+        5. Alignment with time horizon (0-10)
+        6. Evidence and justification (0-10)
+        Luego pide un overall_score y un summary (strengths/weaknesses).
+        Devuelve un dict con la forma:
+        {
+          "clarity_coherence": {"score": int, "comment": str},
+          ...,
+          "overall_score": float,
+          "summary": {"strengths": str, "weaknesses": str}
+        }
+        """
+        rubric = """
+        You are an expert agent specialized in evaluating financial analyses. Your task is to assess a financial analysis based on the following rubric:
+        
+        1. Clarity and coherence (0-10): Is the analysis well-structured and easy to understand?
+        2. Depth of quantitative analysis (0-10): Are the financial indicators and calculations well explained?
+        3. Qualitative rigor (0-10): Does it appropriately consider strategic, sectorial, and macroeconomic factors?
+        4. Usefulness of recommendations (0-10): Are the recommendations clear, concrete, and actionable?
+        5. Alignment with time horizon (0-10): Does the analysis match the requested time horizon?
+        6. Evidence and justification (0-10): Are the conclusions well supported by data and reasoning?
+        
+        For each criterion, provide a numeric score and a brief comment.  
+        At the end, include:
+        - "overall_score": average of the six scores  
+        - "summary": an object with "strengths" and "weaknesses"
+        
+        Please respond WITH EXACTLY ONE JSON object, for example:
+        {
+          "clarity_coherence": {"score": 8, "comment": "..."},
+          "depth_quantitative": {"score": 7, "comment": "..."},
+          "qualitative_rigor": {"score": 9, "comment": "..."},
+          "usefulness_recommendations": {"score": 8, "comment": "..."},
+          "alignment_horizon": {"score": 10, "comment": "..."},
+          "evidence_justification": {"score": 7, "comment": "..."},
+          "overall_score": 8.2,
+          "summary": {
+            "strengths": "...",
+            "weaknesses": "..."
+          }
+        }
+        
+        Analysis to evaluate:
+        """
+        prompt = rubric + generated_analysis
+        messages = [{"role": "user", "content": prompt}]
+        resp = self.llm_client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=2056,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            repetition_penalty=1,
+            stop=["<｜end▁of▁sentence｜>"],
+            stream=True
+        )
+        full = ""
+        for token in resp:
+            if hasattr(token, "choices"):
+                delta = token.choices[0].delta.content
+                full += delta
+        # Limpiar fences y pensar tags si los hubiera
+        cleaned = re.sub(r"<think>.*?</think>", "", full, flags=re.DOTALL).strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:].strip()  # Elimina ```json y espacios iniciales
+        elif cleaned.startswith("```"):
+            cleaned = cleaned[3:].strip()  # Elimina ``` y espacios iniciales
+
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].strip()  # Elimina ``` final y espacios
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            # Manejar respuesta inválida del modelo
+            return {
+                "clarity_coherence": {"score": 0, "comment": "Invalid JSON response"},
+                "depth_quantitative": {"score": 0, "comment": "Invalid JSON response"},
+                "qualitative_rigor": {"score": 0, "comment": "Invalid JSON response"},
+                "usefulness_recommendations": {"score": 0, "comment": "Invalid JSON response"},
+                "alignment_horizon": {"score": 0, "comment": "Invalid JSON response"},
+                "evidence_justification": {"score": 0, "comment": "Invalid JSON response"},
+                "overall_score": 0,
+                "summary": {"strengths": "", "weaknesses": "LLM returned invalid JSON"}
+            }
+
+
+def save_evaluation_to_csv(evaluation: Dict, csv_path: str, first_write: bool = False):
+    """
+    Guarda una sola evaluación en el CSV, añadiéndola al archivo existente o creando uno nuevo.
+
+    Args:
+        evaluation: Diccionario con la evaluación
+        csv_path: Ruta del archivo CSV
+        first_write: Si es True, escribe el encabezado
+    """
+    # Aplanar la evaluación
+    row = {}
+    for key, val in evaluation.items():
+        if isinstance(val, dict) and "score" in val:
+            row[f"{key}_score"] = val["score"]
+            row[f"{key}_comment"] = val["comment"]
+        elif key == "overall_score":
+            row[key] = val
+        elif key == "summary":
+            row["strengths"] = val.get("strengths", "")
+            row["weaknesses"] = val.get("weaknesses", "")
+        else:
+            # Para campos adicionales como domain, question, answer
+            row[key] = val
+
+    # Escribir en el CSV
+    with open(csv_path, 'a' if not first_write else 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+        if first_write:
+            writer.writeheader()
+        writer.writerow(row)

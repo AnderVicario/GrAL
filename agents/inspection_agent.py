@@ -22,7 +22,7 @@ class InspectionAgent:
         prompt = f"""
         You are a security, relevance filtering, and translation agent for a financial analysis system.
 
-        Your task is to analyze any user input and return the following:
+        Your task is to analyze the next user input and return the following:
         
         1. A **classification** of the query:
            - RELEVANT: A question related to finance, investing, financial analysis (technical or fundamental), cryptocurrencies, markets, assets, ETFs, etc.
@@ -35,12 +35,26 @@ class InspectionAgent:
         
         ---
         
-        Output format (use this exact JSON structure with no deviations):
+        # REQUIRED Output format (use this exact JSON structure with no deviations. Do not include any additional text explanations or new lines, just the JSON reponse):):
         
         {{
           "classification": "RELEVANT | IRRELEVANT | MALICIOUS",
           "language": "DetectedLanguageInEnglish",
           "translated_prompt": "Prompt translated to English"
+        }}
+        
+        ---
+        
+        Example:
+        
+        User Input:
+        "¿Es buen momento para invertir en el IBEX 35?"
+        
+        JSON Output:
+        {{
+          "classification": "RELEVANT",
+          "language": "Spanish",
+          "translated_prompt": "Is it a good time to invest in the IBEX 35?"
         }}
         
         ---
@@ -73,7 +87,8 @@ class InspectionAgent:
         try:
             # JSON erantzuna garbitu
             cleaned_response = re.sub(r"<think>.*?</think>", "", full_response, flags=re.DOTALL).strip()
-            
+            # print(cleaned_response)
+
             # Markdown formatutik JSON atera
             if cleaned_response.startswith('```json'):
                 # Kendu hasierako marka eta bila amaierako marka
@@ -81,7 +96,7 @@ class InspectionAgent:
                 end_pos = cleaned_response.rfind('```')
                 if end_pos != -1:
                     cleaned_response = cleaned_response[:end_pos].strip()
-            
+
             # JSON formatuan bihurtu
             return json.loads(cleaned_response)
 

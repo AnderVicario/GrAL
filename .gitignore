@@ -6,4 +6,6 @@ venv/
 __pycache__/
 flask_session/
 .idea/
+tests/prompts.csv
+tests/test_quality_results.csv
 .python-version
